@@ -1,0 +1,30 @@
+import { Controller, Get, Param, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { StatsService } from './stats.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
+import { FastifyRequest } from 'fastify';
+
+interface RequestWithUser extends FastifyRequest {
+  user: {
+    id: string;
+    username: string;
+    role: Role;
+  };
+}
+
+@Controller('stats')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class StatsController {
+  constructor(private readonly statsService: StatsService) {}
+
+  @Get('rounds/:id')
+  @Roles(Role.admin, Role.nikita, Role.survivor)
+  async getRoundStats(
+    @Param('id', ParseUUIDPipe) roundId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.statsService.getRoundStats(roundId, req.user.id);
+  }
+}
