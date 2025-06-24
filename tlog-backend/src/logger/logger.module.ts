@@ -1,30 +1,20 @@
 import {Global, Module} from '@nestjs/common';
-import {WinstonModule} from 'nest-winston';
-import {CorrelationIdService} from './correlation-id.service';
-import {LoggingInterceptor} from './logging.interceptor';
-import {APP_INTERCEPTOR} from '@nestjs/core';
-import {ConfigModule, ConfigService} from "@nestjs/config";
-import {createWinstonConfig} from "./winston.config";
+import {LoggerModule as PinoModule} from 'nestjs-pino';
+import {ConfigModule, ConfigService} from '@nestjs/config';
+import {createPinoConfig} from './create-pino-config';
+
 
 @Global()
 @Module({
   imports: [
     ConfigModule,
-    // WinstonModule.forRootAsync({...})
-    WinstonModule.forRootAsync({
+    PinoModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => createWinstonConfig(configService),
+      useFactory: createPinoConfig,
     }),
   ],
-  providers: [
-    CorrelationIdService,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: LoggingInterceptor,
-    },
-  ],
-  exports: [WinstonModule, CorrelationIdService],
+  exports: [PinoModule],
 })
 export class LoggerModule {
 }

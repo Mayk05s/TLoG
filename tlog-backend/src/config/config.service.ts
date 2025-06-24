@@ -5,6 +5,9 @@ import { ConfigService as NestConfigService } from '@nestjs/config';
 export class ConfigService {
   constructor(private configService: NestConfigService) {}
 
+  get isDev(): boolean {
+    return !!this.configService.get<boolean>('app.isDev')
+  }
   get port(): number {
     return this.configService.get<number>('app.port') ?? 3000;
   }
