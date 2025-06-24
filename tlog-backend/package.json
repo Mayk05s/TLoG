@@ -21,7 +21,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:migrate:reset": "prisma migrate reset && prisma migrate dev",
     "prisma:studio": "prisma studio",
     "dev": "pnpm start:dev"
   },
@@ -41,9 +41,12 @@
     "class-validator": "^0.14.2",
     "fastify": "^5.4.0",
     "joi": "^17.13.3",
+    "nest-winston": "^1.10.2",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
     "zod": "^3.25.67"
   },
   "devDependencies": {

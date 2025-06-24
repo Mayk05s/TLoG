@@ -1,6 +1,6 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, INestApplication, Logger } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { ConfigService } from '@nestjs/config';
+import {INestApplication, Injectable, Logger, OnModuleDestroy, OnModuleInit} from '@nestjs/common';
+import {PrismaClient} from '@prisma/client';
+import {ConfigService} from '@nestjs/config';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -28,13 +28,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     this.logger.log('Disconnecting from database...');
-    await this.$disconnect();
-  }
-
-  async enableShutdownHooks(app: INestApplication) {
-    this.logger.log('Enabling application shutdown hooks');
-    process.on('beforeExit', async () => {
-      await app.close();
-    });
+    try {
+      await this.$disconnect();
+      this.logger.log('Successfully disconnected from database');
+    } catch (error) {
+      this.logger.error(`Error disconnecting from database: ${error.message}`);
+    }
   }
 }

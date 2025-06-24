@@ -5,18 +5,18 @@ import { ConfigService } from '../../config/config.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
-import { PrismaService } from '../../prisma.service';
 import { RolesGuard } from './roles.guard';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.jwtSecret,
         signOptions: { expiresIn: '24h' },
       }),
+      inject: [ConfigService],
     }),
   ],
   controllers: [AuthController],

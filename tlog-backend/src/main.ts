@@ -1,75 +1,62 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { ValidationPipe, Logger } from '@nestjs/common';
-import { PrismaService } from './prisma/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import { SwaggerModule } from '@nestjs/swagger';
-import { buildSwaggerDocument } from './swagger/swagger.config';
+import {NestFactory} from '@nestjs/core';
+import {AppModule} from './app.module';
+import {FastifyAdapter, NestFastifyApplication} from '@nestjs/platform-fastify';
+import {ValidationPipe} from '@nestjs/common';
+import {ConfigService} from '@nestjs/config';
+import {WINSTON_MODULE_NEST_PROVIDER} from 'nest-winston';
+import {setupSwagger} from './config/swagger.config';
+import { CorrelationIdService } from './logger/correlation-id.service';
 
 async function bootstrap() {
-  const logger = new Logger('Bootstrap');
-
-  try {
-    logger.log('Starting minimal TLoG backend...');
-
-    // Create Fastify adapter
-    const fastifyAdapter = new FastifyAdapter({
+  // Initialization with FastifyAdapter
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({
       logger: true,
+      // Performance optimization
+      disableRequestLogging: process.env.NODE_ENV === 'production',
+      ignoreTrailingSlash: true,
+      caseSensitive: false,
+      // Increase request body size limit
+      bodyLimit: 10 * 1024 * 1024, // 10MB
+    }),
+  );
+
+  // Get Winston logger from module and correlation ID service
+  const winstonLogger = app.get(WINSTON_MODULE_NEST_PROVIDER);
+  const correlationService = app.get(CorrelationIdService);
+
+  // Set Winston as the global logger for NestJS
+  app.useLogger(winstonLogger);
+
+  // Register Fastify hook to create correlation ID for each request
+  app.getHttpAdapter().getInstance().addHook('onRequest', (request, reply, done) => {
+    correlationService.run(() => {
+      done();
     });
+  });
 
-    // Create NestJS application
-    const app = await NestFactory.create<NestFastifyApplication>(
-      AppModule,
-      fastifyAdapter,
-    );
+  app.enableCors();
 
-    // Set up global validation pipe
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      transform: true,
-    }));
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
 
-    // Get configuration
-    const configService = app.get(ConfigService);
-    const port = configService.get<number>('PORT') || 3000;
+  // Setup Swagger documentation (moved to config/swagger.config.ts)
+  setupSwagger(app);
 
-    // Log database connection string (masked)
-    const dbUrl = configService.get('database.url') as string;
-    if (dbUrl) {
-      const maskedUrl = dbUrl.replace(/\/\/([^:]+):[^@]+@/, '//***:***@');
-      logger.log(`Database URL: ${maskedUrl}`);
-    } else {
-      logger.error('DATABASE_URL is missing or invalid');
-    }
+  // Get port from configuration
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('app.port', 3000);
 
-    // Set up Prisma
-    try {
-      const prismaService = app.get(PrismaService);
-      await prismaService.enableShutdownHooks(app);
-      logger.log('Prisma service initialized');
-    } catch (error) {
-      logger.error(`Failed to initialize Prisma service: ${error.message}`);
-    }
-
-    // Set up Swagger
-    try {
-      const openApi = buildSwaggerDocument(app);
-      SwaggerModule.setup('docs', app, openApi);
-      logger.log('Swagger documentation available at /docs');
-    } catch (error) {
-      logger.error(`Failed to initialize Swagger: ${error.message}`);
-    }
-
-    // Enable CORS
-    app.enableCors({ origin: true, credentials: true });
-
-    // Start the server
-    await app.listen(port, '0.0.0.0');
-    logger.log(`Application is running on: ${await app.getUrl()}`);
-  } catch (error) {
-    logger.error(`Application failed to start: ${error.message}`);
-    process.exit(1);
-  }
+  // Start server and log info
+  await app.listen(port, '0.0.0.0');
+  winstonLogger.log(`Application is running on: ${await app.getUrl()}`, 'Bootstrap');
 }
-bootstrap();
+
+bootstrap().catch(err => {
+  console.error('Error during application bootstrap:', err);
+  process.exit(1);
+});

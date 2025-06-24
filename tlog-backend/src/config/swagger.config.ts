@@ -5,8 +5,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 export function setupSwagger(app: INestApplication) {
   const config = new DocumentBuilder()
-    .setTitle('MokuField FSM API')
-    .setDescription('API documentation for MokuField FSM platform')
+    .setTitle('The Last of Guss API')
+    .setDescription('API documentation for The Last of Guss API platform')
     .setVersion('1.0')
     .addBearerAuth(
       {
