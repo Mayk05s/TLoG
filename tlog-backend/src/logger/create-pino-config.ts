@@ -22,10 +22,10 @@ export const createPinoConfig = (cfg: ConfigService): Params => {
                     singleLine: true,
                     levelFirst: true,
                     translateTime: 'HH:MM:ss',
-                    ignore:'pid,hostname,req.headers,req.remoteAddress,req.remotePort,req.query,res.headers',
-                    // messageFormat: '{context} {req.method:-} {req.url:-} → {res.statusCode:-} {responseTime:-}ms {msg}',
+                    ignore:'pid,hostname,req.headers,req.remoteAddress,req.remotePort',
 
-                    messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
+                    messageFormat: '{context} {msg} {req.method} {req.url} → {res.statusCode} {responseTime}ms ({req.id})',
+                    // messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
                 },
             } : undefined,
 

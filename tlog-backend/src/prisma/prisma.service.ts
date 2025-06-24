@@ -1,18 +1,30 @@
-import {INestApplication, Injectable, Logger, OnModuleDestroy, OnModuleInit} from '@nestjs/common';
+import {INestApplication, Injectable, OnModuleDestroy, OnModuleInit} from '@nestjs/common';
 import {PrismaClient} from '@prisma/client';
 import {ConfigService} from '@nestjs/config';
+import {Logger} from 'nestjs-pino';
+import {PrismaLogger} from '../logger/prisma-logger';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(PrismaService.name);
-
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly logger: Logger,
+    private readonly prismaLogger: PrismaLogger
+  ) {
     const dbUrl = configService.get<string>('database.url');
+
+    // Initialize PrismaClient with event-based logging
     super({
       datasourceUrl: dbUrl,
-      log: ['query', 'info', 'warn', 'error'],
+      log: prismaLogger.getPrismaLogHandler(),
     });
-    this.logger.log(`Initializing Prisma with database URL: ${dbUrl?.substring(0, dbUrl.indexOf(':', 11)) + ':*****'}`);
+
+    // Attach the logger to Prisma events
+    this.prismaLogger.attachLoggerToPrisma(this);
+
+    // Mask DB URL for security in logs
+    const maskedUrl = dbUrl?.substring(0, dbUrl.indexOf(':', 11)) + ':*****';
+    logger.log(`Initializing Prisma with database URL: ${maskedUrl}`);
   }
 
   async onModuleInit() {
