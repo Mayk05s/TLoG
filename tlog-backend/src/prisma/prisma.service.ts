@@ -15,7 +15,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const {databaseUrl} = configService
     super({
       datasourceUrl: databaseUrl,
-      log: prismaLogger.getPrismaLogHandler(),
+      log: [
+        { level: 'query', emit: 'event' },
+        { level: 'error', emit: 'event' },
+        { level: 'warn', emit: 'event' }
+      ],
     });
 
     if (PrismaService.instance) {
@@ -24,7 +28,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
 
     prismaLogger.attachLoggerToPrisma(this);
-
     this.$use(async (params, next) => {
       const requestId = RequestContextStorage.getRequestId();
       if (requestId) {
