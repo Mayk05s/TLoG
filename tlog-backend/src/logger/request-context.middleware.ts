@@ -1,32 +1,24 @@
-import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import { RequestContextStorage } from './request-context-storage';
+import {Injectable, Logger, NestMiddleware} from '@nestjs/common';
+import {NextFunction, Request, Response} from 'express';
+import {RequestContextStorage} from './request-context-storage';
+import {randomUUID} from 'crypto';
 
-/**
- * Middleware для установки контекста запроса с ID запроса
- */
+
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
-  private readonly logger = new Logger('RequestContextMiddleware');
+    private readonly logger = new Logger('RequestContext');
 
-  use(req: Request, res: Response, next: NextFunction) {
-    // Получаем ID запроса из заголовка или генерируем новый
-    // Явно приводим к строке, чтобы гарантировать совместимость типов
-    const rawReqId = req['id'] || req.headers['x-request-id'] || 'req-' + Math.random().toString(36).substring(2, 15);
-    const requestId = String(rawReqId);
+    use(req: Request, res: Response, next: NextFunction) {
+        // Check if the request already has an ID
+        if (!req['id']) {
+            const generatedId = 'req-' + randomUUID();
+            this.logger.warn(`Request ID not provided, generated new UUID: ${generatedId}`);
+            req['id'] = generatedId;
+        }
 
-    this.logger.debug(`Request ID before setting context: ${requestId}, req.id=${req['id']}, headers=${JSON.stringify(req.headers)}`);
-
-    // Запускаем запрос в контексте с этим ID
-    RequestContextStorage.run(requestId, () => {
-      // Добавляем ID запроса в объект запроса для совместимости
-      req['id'] = requestId;
-
-      // Проверяем, что ID действительно установлен в хранилище
-      const storedId = RequestContextStorage.getRequestId();
-      this.logger.debug(`Request ID stored in context: ${storedId}`);
-
-      next();
-    });
-  }
+        const requestId = String(req['id']);
+        RequestContextStorage.run(requestId, () => {
+            next();
+        });
+    }
 }

@@ -1,21 +1,12 @@
 import {Params} from 'nestjs-pino';
 import {ConfigService} from "../config/config.service";
-import {randomUUID} from 'crypto';
 
 export const createPinoConfig = (config: ConfigService): Params => {
   const isProd = !config.isDev;
 
   return {
     pinoHttp: {
-      // Set appropriate log level based on environment
       level: isProd ? 'info' : 'debug',
-
-      // Skip health check endpoints
-      autoLogging: {
-        ignore: (req: any) => req.url === '/health'
-      },
-
-      // Configure different transports for dev vs prod
       transport: !isProd ? {
         target: 'pino-pretty',
         options: {
@@ -23,13 +14,11 @@ export const createPinoConfig = (config: ConfigService): Params => {
           singleLine: true,
           levelFirst: true,
           translateTime: 'HH:MM:ss',
-          // Формат сообщений только для HTTP запросов
-          messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
+          // messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
+          messageFormat: '{context} {msg} {req.method} {req.url} → {res.statusCode} {responseTime}ms ({req.id})',
           ignore: 'pid,hostname,req.headers',
         }
       } : undefined,
-
-      // Упрощенные сериализаторы - только для HTTP логов
       serializers: {
         req: (req) => ({
           method: req.method,
@@ -44,10 +33,6 @@ export const createPinoConfig = (config: ConfigService): Params => {
           stack: err.stack
         })
       },
-    },
-
-    // Не нужно добавлять исключения для health!
-    // forRoutes: ['*'],
-    // exclude: ['/health'],
+    }
   };
 };

@@ -10,10 +10,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private static connected = false;
   private static instance: PrismaService | null = null;
 
-  constructor(
-    private configService: ConfigService,
-    private readonly prismaLogger: PrismaLogger
-  ) {
+  constructor(configService: ConfigService,
+              protected readonly prismaLogger: PrismaLogger) {
     const {databaseUrl} = configService
     super({
       datasourceUrl: databaseUrl,
@@ -25,24 +23,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return;
     }
 
-    // Сначала подключим обработчики событий Prisma для логирования
-    this.prismaLogger.attachLoggerToPrisma(this);
+    prismaLogger.attachLoggerToPrisma(this);
 
-    // Добавляем middleware для передачи requestId в каждый запрос
     this.$use(async (params, next) => {
-      // Получаем ID текущего запроса
       const requestId = RequestContextStorage.getRequestId();
-
-      // Если есть ID запроса, добавляем его в параметры запроса для логирования
       if (requestId) {
-        // Сохраняем requestId в контексте Prisma для доступа в обработчиках событий
         Object.defineProperty(this, '_lastRequestId', {
           value: requestId,
           writable: true,
           configurable: true,
         });
-
-        this.logger.debug(`Prisma ${params.action} on ${params.model || 'raw'} | RequestID: ${requestId}`);
       }
 
       return next(params);

@@ -1,10 +1,10 @@
-import {Global, Module} from '@nestjs/common';
+import {Global, MiddlewareConsumer, Module, NestModule} from '@nestjs/common';
 import {LoggerModule as PinoModule} from 'nestjs-pino';
 import {ConfigModule} from '@nestjs/config';
 import {createPinoConfig} from './create-pino-config';
 import {PrismaLogger} from "./prisma-logger";
-import {RequestContextService} from './request-context.service';
 import {ConfigService} from "../config/config.service";
+import {RequestContextMiddleware} from "./request-context.middleware";
 
 
 @Global()
@@ -17,8 +17,11 @@ import {ConfigService} from "../config/config.service";
       useFactory: createPinoConfig,
     }),
   ],
-  providers: [RequestContextService, PrismaLogger],
-  exports: [PinoModule, PrismaLogger, RequestContextService],
+  providers: [PrismaLogger],
+  exports: [PinoModule, PrismaLogger],
 })
-export class LoggerModule {
+export class LoggerModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
 }
