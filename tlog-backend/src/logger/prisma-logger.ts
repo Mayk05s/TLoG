@@ -1,89 +1,124 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
+import {Injectable, Logger} from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
+import { RequestContextStorage } from './request-context-storage';
+
+// Define the log types expected by PrismaClient
+type PrismaLogDefinition = {
+  level: 'query' | 'info' | 'warn' | 'error';
+  emit: 'stdout' | 'event';
+};
+
+// Define event types for Prisma client events
+type QueryEvent = {
+  timestamp: Date;
+  query: string;
+  params: string;
+  duration: number;
+  target: string;
+};
+
+type LogEvent = {
+  timestamp: Date;
+  message: string;
+  target: string;
+};
 
 @Injectable()
 export class PrismaLogger {
-  constructor(private readonly logger: Logger) {}
+  // Using NestJS built-in logger with a custom context
+  private readonly logger = new Logger('Prisma');
+
+  constructor(private readonly pinoLogger: PinoLogger) {
+    this.pinoLogger.setContext('Prisma');
+  }
 
   /**
-   * Creates a Prisma log handler that redirects logs to Pino
+   * Creates a Prisma log handler that redirects logs to NestJS logger
    */
-  getPrismaLogHandler(): Prisma.LogDefinition[] {
+  getPrismaLogHandler(): PrismaLogDefinition[] {
     return [
-      {
-        level: 'query',
-        emit: 'event',
-      },
-      {
-        level: 'info',
-        emit: 'event',
-      },
-      {
-        level: 'warn',
-        emit: 'event',
-      },
-      {
-        level: 'error',
-        emit: 'event',
-      },
+      {level: 'query', emit: 'event'},
+      {level: 'warn', emit: 'event'},
+      {level: 'error', emit: 'event'},
     ];
   }
 
   /**
-   * Binds Prisma logging events to Pino logger
-   * @param prismaClient - The PrismaClient instance
+   * Получает ID запроса из текущего контекста или из Prisma
    */
-  attachLoggerToPrisma(prismaClient: any): void {
-    // Log queries
-    prismaClient.$on('query' as any, (e: Prisma.QueryEvent) => {
-      // Format for query logs - include operation in the message for better readability
-      const operation = this.extractQueryOperation(e.query);
+  private getCurrentRequestId(prisma?: any): string | undefined {
+    // Сначала попробуем получить ID из AsyncLocalStorage
+    const storageRequestId = RequestContextStorage.getRequestId();
+    if (storageRequestId) {
+      return storageRequestId;
+    }
 
-      this.logger.debug(
-        {
-          query: e.query,
-          params: e.params,
-          duration: `${e.duration}ms`,
-        },
-        `prisma:query ${operation}`
-      );
-    });
+    // Если не получилось, проверяем сохраненный ID в prisma
+    if (prisma && prisma._lastRequestId) {
+      return prisma._lastRequestId;
+    }
 
-    // Log info messages
-    prismaClient.$on('info' as any, (e: Prisma.LogEvent) => {
-      this.logger.log(
-        { prisma: true }, // Simple marker to identify prisma logs
-        `prisma:info ${e.message}`
-      );
-    });
-
-    // Log warnings
-    prismaClient.$on('warn' as any, (e: Prisma.LogEvent) => {
-      this.logger.warn(
-        { prisma: true },
-        `prisma:warn ${e.message}`
-      );
-    });
-
-    // Log errors
-    prismaClient.$on('error' as any, (e: Prisma.LogEvent) => {
-      this.logger.error(
-        {
-          prisma: true,
-          message: e.message,
-          timestamp: e.timestamp,
-        },
-        `prisma:error ${e.message}`
-      );
-    });
+    return undefined;
   }
 
   /**
-   * Extracts the operation type (SELECT, INSERT, etc.) from a SQL query
+   * Attaches the logger to Prisma client events
    */
-  private extractQueryOperation(query: string): string {
-    const operation = query.trim().split(' ')[0];
-    return operation;
+  attachLoggerToPrisma(prisma: any): void {
+    // For query events
+    prisma.$on('query', (e: QueryEvent) => {
+      // Используем расширенный метод с передачей экземпляра prisma
+      const requestId = this.getCurrentRequestId(prisma);
+
+      // Сформируем объект с данными для JSON части лога
+      const logData: Record<string, any> = {};
+
+      // Если есть ID запроса, добавляем его в логи
+      if (requestId) {
+        logData.req = { id: requestId };
+      }
+
+      // Добавляем дополнительную информацию о запросе
+      logData.duration = `${e.duration}ms`;
+
+      // Параметры запроса (если есть и не пустые)
+      if (e.params && e.params !== '[]') {
+        try {
+          logData.params = JSON.parse(e.params);
+        } catch {
+          logData.params = e.params;
+        }
+      }
+
+      // Формируем строку лога: "SQL-запрос [JSON с meta данными]"
+      const logMessage = `${e.query}`;
+
+      // Логируем с JSON объектом в конце
+      this.logger.debug(`${logMessage} ${JSON.stringify(logData)}`);
+    });
+
+    // For warning events
+    prisma.$on('warn', (e: LogEvent) => {
+      const requestId = this.getCurrentRequestId();
+      const logMessage = e.message;
+
+      if (requestId) {
+        this.logger.warn(`${logMessage} {"req":{"id":"${requestId}"}}`);
+      } else {
+        this.logger.warn(logMessage);
+      }
+    });
+
+    // For error events
+    prisma.$on('error', (e: LogEvent) => {
+      const requestId = this.getCurrentRequestId();
+      const logMessage = e.message;
+
+      if (requestId) {
+        this.logger.error(`${logMessage} {"req":{"id":"${requestId}"}}`);
+      } else {
+        this.logger.error(logMessage);
+      }
+    });
   }
 }

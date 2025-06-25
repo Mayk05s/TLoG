@@ -1,41 +1,53 @@
-
-import { Params } from 'nestjs-pino';
+import {Params} from 'nestjs-pino';
 import {ConfigService} from "../config/config.service";
+import {randomUUID} from 'crypto';
 
+export const createPinoConfig = (config: ConfigService): Params => {
+  const isProd = !config.isDev;
 
-export const createPinoConfig = (cfg: ConfigService): Params => {
-    const isProd = !!cfg.isDev
+  return {
+    pinoHttp: {
+      // Set appropriate log level based on environment
+      level: isProd ? 'info' : 'debug',
 
-    const pinoHttp: NonNullable<Params['pinoHttp']> = {
-        level:  isProd ? 'info' : 'debug',
-        // autoLogging: { ignore: (req: any) => req.url === '/health' },
-        customLogLevel: (req, res, err) => {
-            if (err || res.statusCode >= 500) return 'error';
-            if (res.statusCode >= 400)        return 'debug';
-            return 'info';
-        },
-        transport: !isProd
-            ? {
-                target: 'pino-pretty',
-                options: {
-                    colorize: true,
-                    singleLine: true,
-                    levelFirst: true,
-                    translateTime: 'HH:MM:ss',
-                    ignore:'pid,hostname,req.headers,req.remoteAddress,req.remotePort',
+      // Skip health check endpoints
+      autoLogging: {
+        ignore: (req: any) => req.url === '/health'
+      },
 
-                    messageFormat: '{context} {msg} {req.method} {req.url} → {res.statusCode} {responseTime}ms ({req.id})',
-                    // messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
-                },
-            } : undefined,
+      // Configure different transports for dev vs prod
+      transport: !isProd ? {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          singleLine: true,
+          levelFirst: true,
+          translateTime: 'HH:MM:ss',
+          // Формат сообщений только для HTTP запросов
+          messageFormat: '{req.method} {req.url} → {res.statusCode} {responseTime}ms',
+          ignore: 'pid,hostname,req.headers',
+        }
+      } : undefined,
 
+      // Упрощенные сериализаторы - только для HTTP логов
+      serializers: {
+        req: (req) => ({
+          method: req.method,
+          url: req.url,
+          id: req.id,
+        }),
+        res: (res) => ({
+          statusCode: res.statusCode
+        }),
+        err: (err) => ({
+          message: err.message,
+          stack: err.stack
+        })
+      },
+    },
 
-        formatters: {
-            level(label: string) {
-                return { level: label };
-            },
-        },
-    };
-
-    return { pinoHttp };
+    // Не нужно добавлять исключения для health!
+    // forRoutes: ['*'],
+    // exclude: ['/health'],
+  };
 };

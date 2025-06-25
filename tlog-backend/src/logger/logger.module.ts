@@ -1,8 +1,10 @@
 import {Global, Module} from '@nestjs/common';
 import {LoggerModule as PinoModule} from 'nestjs-pino';
-import {ConfigModule, ConfigService} from '@nestjs/config';
+import {ConfigModule} from '@nestjs/config';
 import {createPinoConfig} from './create-pino-config';
 import {PrismaLogger} from "./prisma-logger";
+import {RequestContextService} from './request-context.service';
+import {ConfigService} from "../config/config.service";
 
 
 @Global()
@@ -15,8 +17,8 @@ import {PrismaLogger} from "./prisma-logger";
       useFactory: createPinoConfig,
     }),
   ],
-  providers: [PrismaLogger],
-  exports: [PinoModule, PrismaLogger],
+  providers: [RequestContextService, PrismaLogger],
+  exports: [PinoModule, PrismaLogger, RequestContextService],
 })
 export class LoggerModule {
 }

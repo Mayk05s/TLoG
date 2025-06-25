@@ -15,10 +15,7 @@ async function bootstrap() {
       ignoreTrailingSlash: true,
       caseSensitive: false,
       bodyLimit: 10 * 1024 * 1024, // 10MB
-    }),
-    {
-      bufferLogs: false, // Ensure logs aren't buffered
-    }
+    })
   );
 
   app.enableCors();
