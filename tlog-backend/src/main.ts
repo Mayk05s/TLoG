@@ -1,9 +1,9 @@
-import {NestFactory} from '@nestjs/core';
-import {AppModule} from './app.module';
-import {FastifyAdapter, NestFastifyApplication} from '@nestjs/platform-fastify';
-import {ValidationPipe, Logger} from '@nestjs/common';
-import {ConfigService} from './config/config.service';
-import {setupSwagger} from './config/swagger.config';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { ConfigService } from './config/config.service';
+import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
   // Initialization with FastifyAdapter
@@ -15,16 +15,18 @@ async function bootstrap() {
       ignoreTrailingSlash: true,
       caseSensitive: false,
       bodyLimit: 10 * 1024 * 1024, // 10MB
-    })
+    }),
   );
 
   app.enableCors();
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-    forbidNonWhitelisted: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
   // Setup Swagger documentation
   setupSwagger(app);

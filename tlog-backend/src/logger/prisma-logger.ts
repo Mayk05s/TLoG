@@ -1,4 +1,4 @@
-import {Injectable, Logger} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { RequestContextStorage } from './request-context-storage';
 
 // Define the log types expected by PrismaClient
@@ -29,9 +29,9 @@ export class PrismaLogger {
 
   getPrismaLogHandler(): PrismaLogDefinition[] {
     return [
-      {level: 'query', emit: 'event'},
-      {level: 'warn', emit: 'event'},
-      {level: 'error', emit: 'event'},
+      { level: 'query', emit: 'event' },
+      { level: 'warn', emit: 'event' },
+      { level: 'error', emit: 'event' },
     ];
   }
 
@@ -46,7 +46,6 @@ export class PrismaLogger {
     }
     return undefined;
   }
-
 
   attachLoggerToPrisma(prisma: any): void {
     prisma.$on('query', (e: QueryEvent) => {

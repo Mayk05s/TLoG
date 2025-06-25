@@ -18,7 +18,7 @@ const mockPrismaService = {
 };
 
 const mockConfigService = {
-  get: jest.fn().mockImplementation((key) => {
+  get: jest.fn().mockImplementation(key => {
     if (key === 'app.roundDuration') return 60;
     if (key === 'app.cooldownDuration') return 30;
     return null;
@@ -88,7 +88,7 @@ describe('RoundsService', () => {
       const mockCreatedRound = {
         id: 1,
         starts_at: new Date('2025-06-24T10:00:30Z'), // now + 30s cooldown
-        ends_at: new Date('2025-06-24T10:01:30Z'),   // starts_at + 60s duration
+        ends_at: new Date('2025-06-24T10:01:30Z'), // starts_at + 60s duration
         createdAt: mockNow,
       };
 
@@ -219,7 +219,7 @@ describe('RoundsService', () => {
       const mockRound = {
         id: 1,
         starts_at: new Date('2025-06-23T10:00:00Z'), // In the past
-        ends_at: new Date('2025-06-23T11:00:00Z'),   // In the past
+        ends_at: new Date('2025-06-23T11:00:00Z'), // In the past
         createdAt: new Date('2025-06-23T09:50:00Z'),
       };
 
@@ -272,7 +272,7 @@ describe('RoundsService', () => {
     it('should return false when round is not active', async () => {
       const mockRound = {
         id: 1,
-        starts_at: new Date('2025-06-24T11:00:00Z'),  // In the future
+        starts_at: new Date('2025-06-24T11:00:00Z'), // In the future
         ends_at: new Date('2025-06-24T12:00:00Z'),
         createdAt: new Date('2025-06-24T09:50:00Z'),
       };

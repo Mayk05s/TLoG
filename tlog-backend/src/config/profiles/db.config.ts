@@ -1,4 +1,4 @@
-import {registerAs} from '@nestjs/config';
+import { registerAs } from '@nestjs/config';
 
 export function buildDatabaseUrl() {
   const host = process.env.DB_HOST || 'localhost';
@@ -16,7 +16,7 @@ export function buildDatabaseUrl() {
     port: parseInt(port, 10),
     database: name,
     username: user,
-    password
+    password,
   };
 }
 

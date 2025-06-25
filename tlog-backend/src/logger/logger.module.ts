@@ -1,11 +1,10 @@
-import {Global, MiddlewareConsumer, Module, NestModule} from '@nestjs/common';
-import {LoggerModule as PinoModule} from 'nestjs-pino';
-import {ConfigModule} from '@nestjs/config';
-import {createPinoConfig} from './create-pino-config';
-import {PrismaLogger} from "./prisma-logger";
-import {ConfigService} from "../config/config.service";
-import {RequestContextMiddleware} from "./request-context.middleware";
-
+import { Global, MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { LoggerModule as PinoModule } from 'nestjs-pino';
+import { ConfigModule } from '@nestjs/config';
+import { createPinoConfig } from './create-pino-config';
+import { PrismaLogger } from './prisma-logger';
+import { ConfigService } from '../config/config.service';
+import { RequestContextMiddleware } from './request-context.middleware';
 
 @Global()
 @Module({

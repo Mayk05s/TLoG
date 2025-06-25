@@ -25,10 +25,6 @@ export class TapsController {
     @Param('roundId', ParseUUIDPipe) roundId: string,
     @Request() req: RequestWithUser,
   ) {
-    return this.tapsService.registerTap(
-      roundId,
-      req.user.id,
-      req.user.role,
-    );
+    return this.tapsService.registerTap(roundId, req.user.id, req.user.role);
   }
 }

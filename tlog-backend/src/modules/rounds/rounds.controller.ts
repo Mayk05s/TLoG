@@ -33,10 +33,7 @@ export class RoundsController {
 
   @Get(':id')
   @Roles(Role.admin, Role.nikita, Role.survivor)
-  async getRoundWithStats(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Request() req: RequestWithUser,
-  ) {
+  async getRoundWithStats(@Param('id', ParseUUIDPipe) id: string, @Request() req: RequestWithUser) {
     const round = await this.roundsService.findOne(id);
     // Replace with your StatsService implementation when available
     return { ...round, userId: req.user.id };

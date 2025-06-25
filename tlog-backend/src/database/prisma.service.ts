@@ -1,8 +1,8 @@
-import {Injectable, Logger, OnModuleDestroy, OnModuleInit} from '@nestjs/common';
-import {PrismaClient} from '@prisma/client';
-import {PrismaLogger} from '../logger/prisma-logger';
-import {ConfigService} from "../config/config.service";
-import {RequestContextStorage} from '../logger/request-context-storage';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+import { PrismaLogger } from '../logger/prisma-logger';
+import { ConfigService } from '../config/config.service';
+import { RequestContextStorage } from '../logger/request-context-storage';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -10,15 +10,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private static connected = false;
   private static instance: PrismaService | null = null;
 
-  constructor(configService: ConfigService,
-              protected readonly prismaLogger: PrismaLogger) {
-    const {databaseUrl} = configService
+  constructor(
+    configService: ConfigService,
+    protected readonly prismaLogger: PrismaLogger,
+  ) {
+    const { databaseUrl } = configService;
     super({
       datasourceUrl: databaseUrl,
       log: [
         { level: 'query', emit: 'event' },
         { level: 'error', emit: 'event' },
-        { level: 'warn', emit: 'event' }
+        { level: 'warn', emit: 'event' },
       ],
     });
 
@@ -46,7 +48,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     if (PrismaService.connected) {
-      this.logger.verbose('Connection already established, skipping initialization. Please remove existing PrismaService from provider.');
+      this.logger.verbose(
+        'Connection already established, skipping initialization. Please remove existing PrismaService from provider.',
+      );
       return;
     }
     try {

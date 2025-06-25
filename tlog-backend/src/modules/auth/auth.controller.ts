@@ -23,7 +23,7 @@ export class AuthController {
   ) {
     const { accessToken, user } = await this.authService.login(
       loginDto.username,
-      loginDto.password
+      loginDto.password,
     );
 
     // Set JWT as HttpOnly cookie
@@ -38,9 +38,7 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(
-    @Body(ValidationPipe) registerDto: RegisterDto,
-  ) {
+  async register(@Body(ValidationPipe) registerDto: RegisterDto) {
     return this.authService.register(registerDto.username, registerDto.password);
   }
 

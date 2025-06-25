@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PrismaService } from '../../database/prisma.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { Role } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -13,7 +13,7 @@ export class TapsService {
 
   async registerTap(roundId: string, userId: string, userRole: Role) {
     // Use a transaction to prevent race conditions
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async tx => {
       // Step 1: Get round
       const round = await tx.round.findUnique({
         where: { id: roundId },
@@ -57,7 +57,7 @@ export class TapsService {
       // If user is nikita, no points are awarded
       // If tap is every 11th tap, award 10 points
       // Otherwise award 1 point
-      const delta = userRole === Role.nikita ? 0 : (newTap % 11 === 0 ? 10 : 1);
+      const delta = userRole === Role.nikita ? 0 : newTap % 11 === 0 ? 10 : 1;
 
       // Step 5: Update stats
       const updatedStats = await tx.playerRoundStats.update({

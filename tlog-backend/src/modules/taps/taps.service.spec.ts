@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 enum Role {
   admin = 'admin',
   survivor = 'survivor',
-  nikita = 'nikita'
+  nikita = 'nikita',
 }
 
 describe('TapsService', () => {
@@ -34,7 +34,7 @@ describe('TapsService', () => {
 
   // Mock implementations
   const mockPrismaService = {
-    $transaction: jest.fn((callback) => callback(mockTx)),
+    $transaction: jest.fn(callback => callback(mockTx)),
     $primary: {
       lock: jest.fn(() => ({})),
     },
@@ -83,7 +83,7 @@ describe('TapsService', () => {
       const mockRound = {
         id: roundId,
         starts_at: new Date('2025-06-24T10:00:00Z'), // Before now
-        ends_at: new Date('2025-06-24T11:00:00Z'),   // After now
+        ends_at: new Date('2025-06-24T11:00:00Z'), // After now
         createdAt: new Date('2025-06-24T09:50:00Z'),
       };
 
@@ -303,7 +303,9 @@ describe('TapsService', () => {
     it('should throw NotFoundException if round not found', async () => {
       mockTx.round.findUnique.mockResolvedValue(null);
 
-      await expect(service.registerTap(999, userId, Role.survivor)).rejects.toThrow(NotFoundException);
+      await expect(service.registerTap(999, userId, Role.survivor)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(mockTx.playerRoundStats.findUnique).not.toHaveBeenCalled();
       expect(mockTx.playerRoundStats.update).not.toHaveBeenCalled();
     });
@@ -319,7 +321,9 @@ describe('TapsService', () => {
 
       mockTx.round.findUnique.mockResolvedValue(mockRound);
 
-      await expect(service.registerTap(roundId, userId, Role.survivor)).rejects.toThrow(ConflictException);
+      await expect(service.registerTap(roundId, userId, Role.survivor)).rejects.toThrow(
+        ConflictException,
+      );
       expect(mockTx.playerRoundStats.findUnique).not.toHaveBeenCalled();
       expect(mockTx.playerRoundStats.update).not.toHaveBeenCalled();
     });
@@ -335,7 +339,9 @@ describe('TapsService', () => {
 
       mockTx.round.findUnique.mockResolvedValue(mockRound);
 
-      await expect(service.registerTap(roundId, userId, Role.survivor)).rejects.toThrow(ConflictException);
+      await expect(service.registerTap(roundId, userId, Role.survivor)).rejects.toThrow(
+        ConflictException,
+      );
       expect(mockTx.playerRoundStats.findUnique).not.toHaveBeenCalled();
       expect(mockTx.playerRoundStats.update).not.toHaveBeenCalled();
     });

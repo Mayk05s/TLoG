@@ -8,7 +8,7 @@ import * as bcrypt from 'bcrypt';
 enum Role {
   admin = 'admin',
   survivor = 'survivor',
-  nikita = 'nikita'
+  nikita = 'nikita',
 }
 
 describe('AuthService', () => {

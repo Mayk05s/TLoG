@@ -1,16 +1,15 @@
-import {Controller, Get} from '@nestjs/common';
-import {AppService} from './app.service';
-import {PrismaService} from './prisma/prisma.service';
-import {Logger} from "nestjs-pino";
+import { Controller, Get } from '@nestjs/common';
+import { AppService } from './app.service';
+import { PrismaService } from './database/prisma.service';
+import { Logger } from 'nestjs-pino';
 
 @Controller()
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly prisma: PrismaService,
-    private readonly logger: Logger
-  ) {
-  }
+    private readonly logger: Logger,
+  ) {}
 
   @Get()
   getHello(): string {
@@ -21,7 +20,7 @@ export class AppController {
   async healthCheck() {
     try {
       // Test database connection
-      this.logger.debug({ test:'test' }, 'Creating player');
+      this.logger.debug({ test: 'test' }, 'Creating player');
       await this.prisma.$queryRaw`SELECT 1`;
 
       return {

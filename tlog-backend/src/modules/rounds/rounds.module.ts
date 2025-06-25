@@ -5,6 +5,6 @@ import { RoundsService } from './rounds.service';
 @Module({
   controllers: [RoundsController],
   providers: [RoundsService],
-  exports: [RoundsService]
+  exports: [RoundsService],
 })
 export class RoundsModule {}
