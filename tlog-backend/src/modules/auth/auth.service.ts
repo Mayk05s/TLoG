@@ -1,93 +1,82 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
-import { PrismaService } from '../../database/prisma.service';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { UsersService } from '../user/users.service';
+import { SignupDto } from './dto/signup.dto';
+import { CreateUserDto } from '../user/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
+    private usersService: UsersService,
     private jwtService: JwtService,
   ) {}
 
   async validateUser(username: string, password: string): Promise<any> {
-    const user = await this.prisma.user.findUnique({
-      where: { username },
-    });
-
+    const user = await this.usersService.findByUsername(username);
     if (user && (await bcrypt.compare(password, user.password))) {
       const { password, ...result } = user;
       return result;
     }
-
     return null;
   }
 
-  async login(username: string, password: string) {
+  async login(username: string, password: string): Promise<AuthResponseDto> {
     const user = await this.validateUser(username, password);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { username: user.username, sub: user.id, role: user.role };
-
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-      },
-    };
+    return this.generateTokens(user);
   }
 
-  async register(username: string, password: string) {
+  async signup(dto: SignupDto): Promise<AuthResponseDto> {
     // Check if user already exists
-    const existingUser = await this.prisma.user.findUnique({
-      where: { username },
-    });
+    const existingUser = await this.usersService.findByUsername(dto.username);
 
     if (existingUser) {
       throw new ConflictException('Username already exists');
     }
 
-    // Determine role based on username
-    const role = await this.mapRoleByUsername(username);
+    const hash = await bcrypt.hash(dto.password, 12);
 
-    // Hash password and create user
-    const hashedPassword = await this.hashPassword(password);
+    // Create a new user using the UsersService
+    const createUserDto: CreateUserDto = {
+      username: dto.username,
+      password: hash,
+    };
 
-    const user = await this.prisma.user.create({
-      data: {
-        username,
-        password: hashedPassword,
-        role,
-      },
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const newUser = await this.usersService.create(createUserDto);
+    const { password: _, ...userResult } = newUser;
 
-    return user;
+    return this.generateTokens(userResult);
   }
 
-  async mapRoleByUsername(username: string): Promise<Role> {
-    // Based on the business rules
-    if (username === 'admin') {
-      return Role.admin;
-    } else if (username === 'nikita' || username === 'Никита') {
-      return Role.nikita;
-    } else {
-      return Role.survivor;
+  async refresh(user: any): Promise<AuthResponseDto> {
+    const freshUser = await this.usersService.findById(user.id);
+
+    if (!freshUser) {
+      throw new UnauthorizedException('User not found');
     }
+
+    const { password: _, ...userResult } = freshUser;
+    return this.generateTokens(userResult);
   }
 
-  async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
+  private generateTokens(user: any): AuthResponseDto {
+    const payload = { username: user.username, sub: user.id, role: user.role };
+
+    return {
+      accessToken: this.jwtService.sign(payload),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    };
   }
 }

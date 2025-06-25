@@ -1,8 +1,8 @@
-import { Controller, Post, Param, UseGuards, Request, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Param, ParseUUIDPipe, Post, Request, UseGuards } from '@nestjs/common';
 import { TapsService } from './taps.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '@prisma/client';
 import { FastifyRequest } from 'fastify';
 

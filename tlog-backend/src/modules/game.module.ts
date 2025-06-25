@@ -3,9 +3,10 @@ import { AuthModule } from './auth/auth.module';
 import { RoundsModule } from './rounds/rounds.module';
 import { TapsModule } from './taps/taps.module';
 import { StatsModule } from './stats/stats.module';
+import { UsersModule } from './user/users.module';
 
 @Module({
-  imports: [AuthModule, RoundsModule, TapsModule, StatsModule],
-  exports: [AuthModule, RoundsModule, TapsModule, StatsModule],
+  imports: [AuthModule, RoundsModule, TapsModule, StatsModule, UsersModule],
+  exports: [AuthModule, RoundsModule, TapsModule, StatsModule, UsersModule],
 })
 export class GameModule {}

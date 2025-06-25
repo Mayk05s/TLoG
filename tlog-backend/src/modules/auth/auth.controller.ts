@@ -1,50 +1,41 @@
-import { Body, Controller, Post, Res, ValidationPipe } from '@nestjs/common';
-import { Response } from 'express';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { SignupDto } from './dto/signup.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentUserDto } from '../user/dto/current-user.dto';
+import { LocalAuthGuard } from './guards/local-auth.guard';
 
-class LoginDto {
-  username: string;
-  password: string;
-}
-
-class RegisterDto {
-  username: string;
-  password: string;
-}
-
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @UseGuards(LocalAuthGuard)
   @Post('login')
-  async login(
-    @Body(ValidationPipe) loginDto: LoginDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const { accessToken, user } = await this.authService.login(
-      loginDto.username,
-      loginDto.password,
-    );
-
-    // Set JWT as HttpOnly cookie
-    response.cookie('jwt', accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    });
-
-    return { user };
+  async login(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
+    return this.authService.login(loginDto.username, loginDto.password);
   }
 
-  @Post('register')
-  async register(@Body(ValidationPipe) registerDto: RegisterDto) {
-    return this.authService.register(registerDto.username, registerDto.password);
+  @Post('signup')
+  async signup(@Body() signupDto: SignupDto): Promise<AuthResponseDto> {
+    return this.authService.signup(signupDto);
   }
 
-  @Post('logout')
-  async logout(@Res({ passthrough: true }) response: Response) {
-    response.clearCookie('jwt');
-    return { message: 'Logged out successfully' };
+  @UseGuards(JwtRefreshGuard)
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access token' })
+  async refresh(@CurrentUser() currentUser: CurrentUserDto): Promise<AuthResponseDto> {
+    return this.authService.refresh(currentUser);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  getProfile(@CurrentUser() user: CurrentUserDto): CurrentUserDto {
+    return user;
   }
 }
