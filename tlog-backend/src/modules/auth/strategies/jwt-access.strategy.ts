@@ -5,7 +5,7 @@ import { ConfigService } from '../../../config/config.service';
 import { UsersService } from '../../users/users.service';
 
 @Injectable()
-export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
