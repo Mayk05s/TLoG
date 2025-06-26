@@ -27,12 +27,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       throw new UnauthorizedException('Refresh token not found');
     }
 
-    const user = await this.usersService.findById(payload.sub);
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    return user;
+    return this.usersService.findById(payload.sub);
   }
 }

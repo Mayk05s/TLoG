@@ -18,6 +18,6 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
   }
 
   async validate(payload: { sub: string }) {
-    return this.usersService.findById(payload.sub);
+    return await this.usersService.findById(payload.sub);
   }
 }

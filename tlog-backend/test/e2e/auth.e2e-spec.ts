@@ -286,7 +286,7 @@ describe('Authentication (e2e)', () => {
       return request(app.getHttpServer())
         .get(`/users/${userId}`)
         .set('Authorization', `Bearer ${regularToken}`)
-        .expect(401);
+        .expect(403);
     });
 
     it('should return 404 for non-existent user', async () => {
