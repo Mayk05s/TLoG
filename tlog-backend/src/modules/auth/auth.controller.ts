@@ -13,7 +13,7 @@ import { Public } from './decorators/public.decorator';
 import { UsersService } from '../users/users.service';
 import { User } from '@prisma/client';
 
-@ApiTags('auth')
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(

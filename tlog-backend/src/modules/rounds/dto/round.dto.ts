@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Exclude, Expose } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
 
 @Exclude()
 export class RoundDto {
@@ -8,18 +8,22 @@ export class RoundDto {
   id: string;
 
   @Expose()
-  @ApiProperty({ description: 'Round start time' })
-  startsAt: Date;
+  @Transform(({ value }) => (value instanceof Date ? value.getTime() : value))
+  @ApiProperty({ description: 'Round start time (timestamp)' })
+  startsAt: number;
 
   @Expose()
-  @ApiProperty({ description: 'Round end time' })
-  endsAt: Date;
+  @Transform(({ value }) => (value instanceof Date ? value.getTime() : value))
+  @ApiProperty({ description: 'Round end time (timestamp)' })
+  endsAt: number;
 
   @Expose()
-  @ApiProperty({ description: 'Round creation time' })
-  createdAt: Date;
+  @Transform(({ value }) => (value instanceof Date ? value.getTime() : value))
+  @ApiProperty({ description: 'Round creation time (timestamp)' })
+  createdAt: number;
 
-  constructor(partial: Partial<RoundDto>) {
+  constructor(partial: any) {
+    // Просто присваиваем все поля - Transform декораторы сделают свою работу при сериализации
     Object.assign(this, partial);
   }
 }

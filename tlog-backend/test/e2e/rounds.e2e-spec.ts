@@ -115,14 +115,11 @@ describe('Rounds (e2e)', () => {
       expect(response.body).toHaveProperty('startsAt');
       expect(response.body).toHaveProperty('endsAt');
       expect(response.body).toHaveProperty('createdAt');
-
-      // Verify timing logic: starts_at should be in the future (cooldown period)
-      const startsAt = new Date(response.body.starts_at);
-      const endsAt = new Date(response.body.ends_at);
+      const startsAt = new Date(response.body.startsAt);
       const now = new Date();
 
-      expect(startsAt.getTime()).toBeGreaterThan(now.getTime());
-      expect(endsAt.getTime()).toBeGreaterThan(startsAt.getTime());
+      expect(response.body.startsAt).toBeGreaterThan(now.getTime());
+      expect(response.body.endsAt).toBeGreaterThan(startsAt.getTime());
     });
 
     it('should return 403 when survivor tries to create round', async () => {
@@ -270,18 +267,18 @@ describe('Rounds (e2e)', () => {
 
       expect(response.status).toBe(201);
 
-      const startsAt = new Date(response.body.starts_at);
-      const endsAt = new Date(response.body.ends_at);
+      const startsAt = new Date(response.body.startsAt);
+      const endsAt = new Date(response.body.endsAt);
       const afterCreation = new Date();
 
-      // starts_at should be at least cooldown duration (30s) after creation
+      // startsAt should be at least cooldown duration (30s) after creation
       const minStartTime = new Date(beforeCreation.getTime() + 30 * 1000);
       const maxStartTime = new Date(afterCreation.getTime() + 30 * 1000);
 
       expect(startsAt.getTime()).toBeGreaterThanOrEqual(minStartTime.getTime());
       expect(startsAt.getTime()).toBeLessThanOrEqual(maxStartTime.getTime());
 
-      // ends_at should be round duration (60s) after starts_at
+      // endsAt should be round duration (60s) after startsAt
       const expectedEndTime = new Date(startsAt.getTime() + 60 * 1000);
       expect(endsAt.getTime()).toBe(expectedEndTime.getTime());
     });
