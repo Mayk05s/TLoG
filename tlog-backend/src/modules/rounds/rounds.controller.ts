@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -17,6 +18,7 @@ import { CurrentUserDto } from '../users/dto/current-user.dto';
 import { Role } from '@prisma/client';
 import { RoundDto } from './dto/round.dto';
 import { RoundWithStatsDto } from './dto/round-with-stats.dto';
+import { RoundsQueryDto } from './dto/rounds-query.dto';
 
 @ApiTags('Rounds')
 @ApiBearerAuth('access-token')
@@ -26,8 +28,8 @@ export class RoundsController {
   constructor(private readonly roundsService: RoundsService) {}
 
   @Get()
-  async getActiveRounds(): Promise<RoundDto[]> {
-    return this.roundsService.findAll();
+  async getActiveRounds(@Query() query: RoundsQueryDto): Promise<RoundDto[]> {
+    return this.roundsService.findAll(query.status);
   }
 
   @Post()

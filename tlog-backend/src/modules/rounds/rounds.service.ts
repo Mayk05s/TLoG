@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { RoundDto } from './dto/round.dto';
+import { RoundStatus } from './enums/round-status.enum';
 
 @Injectable()
 export class RoundsService {
@@ -10,10 +11,30 @@ export class RoundsService {
     private readonly configService: ConfigService,
   ) {}
 
-  async findAll(): Promise<RoundDto[]> {
+  async findAll(status?: RoundStatus): Promise<RoundDto[]> {
+    const now = new Date();
+
+    let whereClause = {};
+
+    if (status === RoundStatus.ACTIVE) {
+      whereClause = {
+        AND: [{ startsAt: { lte: now } }, { endsAt: { gte: now } }],
+      };
+    } else if (status === RoundStatus.UPCOMING) {
+      whereClause = {
+        startsAt: { gt: now },
+      };
+    } else if (status === RoundStatus.COMPLETED) {
+      whereClause = {
+        endsAt: { lt: now },
+      };
+    }
+
     const rounds = await this.prisma.round.findMany({
+      where: whereClause,
       orderBy: { createdAt: 'desc' },
     });
+
     return rounds.map(round => new RoundDto(round));
   }
 

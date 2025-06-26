@@ -2,6 +2,7 @@ import * as request from 'supertest';
 import { closeTestingApp, createTestingApp, prisma } from '../test-utils';
 import { TEST_USERS } from '../data/test-users';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { RoundStatus } from '../../src/modules/rounds/enums/round-status.enum';
 
 describe('Rounds (e2e)', () => {
   let app: NestFastifyApplication;
@@ -48,6 +49,177 @@ describe('Rounds (e2e)', () => {
       refreshToken: loginResponse.body.refreshToken,
     };
   }
+
+  // Helper function to create rounds with specific timing
+  async function createRoundWithTiming(startsAt: Date, endsAt: Date) {
+    const round = await prisma.round.create({
+      data: {
+        startsAt,
+        endsAt,
+      },
+    });
+    return round;
+  }
+
+  describe('GET /rounds - Filtering', () => {
+    let upcomingRound: any;
+    let activeRound: any;
+    let completedRound: any;
+
+    beforeEach(async () => {
+      // Clean up existing rounds
+      await prisma.round.deleteMany();
+
+      const now = new Date();
+
+      // Create upcoming round (starts in 1 hour, ends in 2 hours)
+      upcomingRound = await createRoundWithTiming(
+        new Date(now.getTime() + 60 * 60 * 1000),
+        new Date(now.getTime() + 2 * 60 * 60 * 1000),
+      );
+
+      // Create active round (started 30 minutes ago, ends in 30 minutes)
+      activeRound = await createRoundWithTiming(
+        new Date(now.getTime() - 30 * 60 * 1000),
+        new Date(now.getTime() + 30 * 60 * 1000),
+      );
+
+      // Create completed round (started 2 hours ago, ended 1 hour ago)
+      completedRound = await createRoundWithTiming(
+        new Date(now.getTime() - 2 * 60 * 60 * 1000),
+        new Date(now.getTime() - 60 * 60 * 1000),
+      );
+    });
+
+    it('should return all rounds when no status filter is applied', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/rounds')
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(3);
+
+      const roundIds = response.body.map((round: any) => round.id);
+      expect(roundIds).toContain(upcomingRound.id);
+      expect(roundIds).toContain(activeRound.id);
+      expect(roundIds).toContain(completedRound.id);
+    });
+
+    it('should return only active rounds when filtering by active status', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.ACTIVE}`)
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(1);
+      expect(response.body[0].id).toBe(activeRound.id);
+    });
+
+    it('should return only upcoming rounds when filtering by upcoming status', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.UPCOMING}`)
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(1);
+      expect(response.body[0].id).toBe(upcomingRound.id);
+    });
+
+    it('should return only completed rounds when filtering by completed status', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.COMPLETED}`)
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(1);
+      expect(response.body[0].id).toBe(completedRound.id);
+    });
+
+    it('should return empty array when filtering by status with no matching rounds', async () => {
+      // Clean up all rounds
+      await prisma.round.deleteMany();
+
+      const response = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.ACTIVE}`)
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(0);
+    });
+
+    it('should return 400 for invalid status filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/rounds?status=invalid_status')
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain(
+        'status must be one of the following values: active, upcoming, completed',
+      );
+    });
+
+    it('should return 400 for empty status filter', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/rounds?status=')
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('message');
+    });
+
+    it('should work with filtering for all user roles', async () => {
+      // Test survivor user
+      const survivorResponse = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.ACTIVE}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
+
+      expect(survivorResponse.status).toBe(200);
+      expect(survivorResponse.body).toHaveLength(1);
+      expect(survivorResponse.body[0].id).toBe(activeRound.id);
+
+      // Test nikita user
+      const nikitaResponse = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.UPCOMING}`)
+        .set('Authorization', `Bearer ${nikitaTokens.accessToken}`);
+
+      expect(nikitaResponse.status).toBe(200);
+      expect(nikitaResponse.body).toHaveLength(1);
+      expect(nikitaResponse.body[0].id).toBe(upcomingRound.id);
+    });
+
+    it('should maintain proper ordering when filtering', async () => {
+      // Create multiple rounds of the same status
+      const now = new Date();
+      const oldCompletedRound = await createRoundWithTiming(
+        new Date(now.getTime() - 4 * 60 * 60 * 1000),
+        new Date(now.getTime() - 3 * 60 * 60 * 1000),
+      );
+
+      const response = await request(app.getHttpServer())
+        .get(`/rounds?status=${RoundStatus.COMPLETED}`)
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveLength(2);
+
+      // Should be ordered by createdAt desc (newest first)
+      const createdAtTimes = response.body.map((round: any) => round.createdAt);
+      expect(createdAtTimes[0]).toBeGreaterThan(createdAtTimes[1]);
+    });
+
+    it('should handle case-sensitive status values correctly', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/rounds?status=ACTIVE')
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toContain(
+        'status must be one of the following values: active, upcoming, completed',
+      );
+    });
+  });
 
   describe('GET /rounds', () => {
     it('should return all rounds for authenticated admin', async () => {
