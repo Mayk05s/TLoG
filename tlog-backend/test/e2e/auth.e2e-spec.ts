@@ -104,7 +104,7 @@ describe('Authentication (e2e)', () => {
       expect(responseEmpty.status).toBe(400);
     });
 
-    it('should assign correct role based on username', async () => {
+    it('should assign admin role based on username', async () => {
       // Create admin user
       const adminResponse = await request(app.getHttpServer())
         .post('/auth/signup')
@@ -116,8 +116,8 @@ describe('Authentication (e2e)', () => {
       // Admin gets ADMIN group, so can see their own role
       expect(adminResponse.body.user.id).toBeDefined();
       expect(adminResponse.body.user.username).toBe('admin');
-      expect(adminResponse.body.user.role).toBe('admin'); // Visible because user has admin role (ADMIN group)
-      expect(adminResponse.body.user.createdAt).toBeUndefined(); // Not SELF group in signup
+      expect(adminResponse.body.user.role).toBe('admin');
+      expect(adminResponse.body.user.createdAt).toBeDefined();
       expect(adminResponse.body.user.password).toBeUndefined();
 
       // Create nikita user with lowercase
@@ -205,13 +205,11 @@ describe('Authentication (e2e)', () => {
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
 
-      // Test admin user DTO serialization in login response
-      // Admin gets ADMIN group, so can see role
       const user = response.body.user;
       expect(user.id).toBeDefined();
       expect(user.username).toBe(admin.username);
-      expect(user.role).toBe('admin'); // Visible because user has admin role (ADMIN group)
-      expect(user.createdAt).toBeUndefined(); // Not SELF group in login
+      expect(user.role).toBe('admin');
+      expect(user.createdAt).toBeDefined();
       expect(user.password).toBeUndefined();
     });
 

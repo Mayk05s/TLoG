@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -10,11 +10,16 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentUserDto } from '../users/dto/current-user.dto';
 import { UserDto } from '../users/dto/user.dto';
 import { Public } from './decorators/public.decorator';
+import { UsersService } from '../users/users.service';
+import { User } from '@prisma/client';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private usersService: UsersService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -39,7 +44,11 @@ export class AuthController {
   @Get('profile')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  getProfile(@CurrentUser() user: CurrentUserDto): UserDto {
+  async getProfile(@CurrentUser() currentUserDto: CurrentUserDto): Promise<UserDto> {
+    const user: User | null = await this.usersService.findById(currentUserDto.id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     return new UserDto(user);
   }
 }

@@ -17,7 +17,7 @@ export class UserDto {
   @ApiProperty({ enum: Role, description: 'User role' })
   role: Role;
 
-  @Expose({ groups: [SerializationGroup.SELF] })
+  @Expose({ groups: [SerializationGroup.SELF, SerializationGroup.ADMIN] })
   @ApiPropertyOptional({ description: 'Account creation date' })
   createdAt?: Date;
 

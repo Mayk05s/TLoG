@@ -9,43 +9,55 @@ import { SerializationGroup } from '../common/enums/serialization-group.enum';
 export class GroupsInterceptor implements NestInterceptor {
   constructor(private reflector: Reflector) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
-    const user = request.user as { id: string; role: string } | undefined;
+  intercept(ctx: ExecutionContext, next: CallHandler): Observable<any> {
+    const req = ctx.switchToHttp().getRequest();
+    const user = req.user as { id: string; role: string } | undefined;
 
+    /* базовый набор */
+    const groups: string[] = [SerializationGroup.PUBLIC];
+    if (user) groups.push(SerializationGroup.AUTH);
+    if (user?.role === 'admin') groups.push(SerializationGroup.ADMIN);
+
+    /* === выявляем self === */
+    const targetIdParam = req.params.id; // /users/:id
+    if (user && targetIdParam && targetIdParam === user.id) {
+      groups.push(SerializationGroup.SELF);
+    }
+
+    // Special case: profile endpoint - user is always accessing their own data
+    if (this.isProfileEndpoint(req) && user) {
+      if (!groups.includes(SerializationGroup.SELF)) {
+        groups.push(SerializationGroup.SELF);
+      }
+    }
+
+    // если контроллер вернёт один объект, можно безопасно проверить body.id
     return next.handle().pipe(
       map(data => {
         if (!data) return data;
 
-        // Build groups array based on user context and data
-        const groups = [SerializationGroup.PUBLIC];
+        // если это массив — не трогаем, если объект и у него id совпадает с user.id
+        if (Array.isArray(data)) {
+          return instanceToPlain(data, {
+            groups,
+            excludeExtraneousValues: true,
+          });
+        }
 
-        // For auth endpoints, we need to check the response data role and add groups accordingly
-        if (this.isAuthEndpoint(request)) {
-          groups.push(SerializationGroup.AUTH);
-
-          // For auth endpoints, if the user being returned is admin, add ADMIN group
-          if (data.user?.role === 'admin') {
-            groups.push(SerializationGroup.ADMIN);
-          }
-        } else {
-          // For regular endpoints, use request.user context
-          if (user) {
-            groups.push(SerializationGroup.AUTH);
-          }
-
-          if (user?.role === 'admin') {
-            groups.push(SerializationGroup.ADMIN);
-          }
-
-          // Check if user is accessing their own resource
-          const targetUserId = request.params.id;
-          if (user && targetUserId && user.id === targetUserId) {
+        // Проверяем, принадлежит ли объект пользователю
+        if (user && (data.id === user.id || data.ownerId === user.id)) {
+          if (!groups.includes(SerializationGroup.SELF)) {
             groups.push(SerializationGroup.SELF);
           }
         }
 
-        // Convert to plain object with groups
+        // For auth endpoints, check if the response contains admin user
+        if (this.isAuthEndpoint(req) && data.user?.role === 'admin') {
+          if (!groups.includes(SerializationGroup.ADMIN)) {
+            groups.push(SerializationGroup.ADMIN);
+          }
+        }
+
         return instanceToPlain(data, {
           groups,
           excludeExtraneousValues: true,
@@ -59,5 +71,10 @@ export class GroupsInterceptor implements NestInterceptor {
     return (
       url.includes('/auth/login') || url.includes('/auth/signup') || url.includes('/auth/refresh')
     );
+  }
+
+  private isProfileEndpoint(request: any): boolean {
+    const url = request.url || request.originalUrl || '';
+    return url.includes('/auth/profile');
   }
 }
