@@ -13,6 +13,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserDto } from './dto/user.dto';
 import { Role } from '@prisma/client';
+import { ValidateUsernamePipe } from './pipes/validate-username.pipe';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -35,7 +36,9 @@ export class UsersController {
   @UseGuards(RolesGuard)
   @Roles(Role.admin)
   @Get('/username/:username')
-  async getUserByUsername(@Param('username') username: string): Promise<UserDto> {
+  async getUserByUsername(
+    @Param('username', ValidateUsernamePipe) username: string,
+  ): Promise<UserDto> {
     const user = await this.userService.findByUsername(username);
     if (!user) {
       throw new NotFoundException('User not found');
