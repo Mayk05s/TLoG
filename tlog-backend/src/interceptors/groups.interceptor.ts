@@ -36,32 +36,39 @@ export class GroupsInterceptor implements NestInterceptor {
       map(data => {
         if (!data) return data;
 
-        // если это массив — не трогаем, если объект и у него id совпадает с user.id
-        if (Array.isArray(data)) {
-          return instanceToPlain(data, {
+        try {
+          // если это массив — не трогаем, если объект и у него id совпадает с user.id
+          if (Array.isArray(data)) {
+            return instanceToPlain(data, {
+              groups,
+              excludeExtraneousValues: true,
+            });
+          }
+
+          // Проверяем, принадлежит ли объект пользователю
+          if (user && (data.id === user.id || data.ownerId === user.id)) {
+            if (!groups.includes(SerializationGroup.SELF)) {
+              groups.push(SerializationGroup.SELF);
+            }
+          }
+
+          // For auth endpoints, check if the response contains admin user
+          if (this.isAuthEndpoint(req) && data.user?.role === 'admin') {
+            if (!groups.includes(SerializationGroup.ADMIN)) {
+              groups.push(SerializationGroup.ADMIN);
+            }
+          }
+
+          const result = instanceToPlain(data, {
             groups,
             excludeExtraneousValues: true,
           });
-        }
 
-        // Проверяем, принадлежит ли объект пользователю
-        if (user && (data.id === user.id || data.ownerId === user.id)) {
-          if (!groups.includes(SerializationGroup.SELF)) {
-            groups.push(SerializationGroup.SELF);
-          }
+          return result;
+        } catch (error) {
+          console.error('GroupsInterceptor error:', error);
+          throw error;
         }
-
-        // For auth endpoints, check if the response contains admin user
-        if (this.isAuthEndpoint(req) && data.user?.role === 'admin') {
-          if (!groups.includes(SerializationGroup.ADMIN)) {
-            groups.push(SerializationGroup.ADMIN);
-          }
-        }
-
-        return instanceToPlain(data, {
-          groups,
-          excludeExtraneousValues: true,
-        });
       }),
     );
   }

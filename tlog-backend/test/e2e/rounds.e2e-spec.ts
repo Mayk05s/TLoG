@@ -112,8 +112,8 @@ describe('Rounds (e2e)', () => {
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
-      expect(response.body).toHaveProperty('starts_at');
-      expect(response.body).toHaveProperty('ends_at');
+      expect(response.body).toHaveProperty('startsAt');
+      expect(response.body).toHaveProperty('endsAt');
       expect(response.body).toHaveProperty('createdAt');
 
       // Verify timing logic: starts_at should be in the future (cooldown period)
@@ -200,8 +200,8 @@ describe('Rounds (e2e)', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('id', testRoundId);
-      expect(response.body).toHaveProperty('starts_at');
-      expect(response.body).toHaveProperty('ends_at');
+      expect(response.body).toHaveProperty('startsAt');
+      expect(response.body).toHaveProperty('endsAt');
       expect(response.body).toHaveProperty('createdAt');
       expect(response.body).toHaveProperty('userId');
     });
