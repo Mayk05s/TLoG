@@ -19,7 +19,9 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: { sub: string }) {
-    const refreshToken = req.get('Authorization')?.replace('Bearer', '').trim();
+    // Compatible with both Express and Fastify
+    const authHeader = req.headers?.authorization || req.get?.('Authorization');
+    const refreshToken = authHeader?.replace('Bearer', '').trim();
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
@@ -31,6 +33,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
       throw new UnauthorizedException('User not found');
     }
 
-    return { ...user, refreshToken };
+    return user;
   }
 }
