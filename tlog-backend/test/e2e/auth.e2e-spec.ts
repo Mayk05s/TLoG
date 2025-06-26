@@ -264,41 +264,33 @@ describe('Authentication (e2e)', () => {
 
   describe('5. Admin-only user access', () => {
     it('should allow admin to get user by ID', async () => {
-      // First create a regular user to get their ID
       const { userId } = await registerUser('user_to_query', 'Password123!');
-
-      // Then login as admin
       const { accessToken: adminToken } = await loginUser(admin.username, admin.password);
 
-      // Try to access the user info as admin
       return request(app.getHttpServer())
-        .get(`/auth/users/${userId}`)
+        .get(`/users/${userId}`)
         .set('Authorization', `Bearer ${adminToken}`)
-        .expect(404); // Endpoint is likely not implemented yet
+        .expect(200)
+        .expect(res => {
+          expect(res.body.username).toBeDefined();
+          expect(res.body.role).toBeDefined();
+        });
     });
 
     it('should deny regular user access to get user by ID', async () => {
-      // First create a user to get their ID
       const { userId } = await registerUser('another_user', 'Password123!');
-
-      // Then login as regular user
       const { accessToken: regularToken } = await loginUser(
         regularUser.username,
         regularUser.password,
       );
-
-      // Try to access the user info as regular user
       return request(app.getHttpServer())
-        .get(`/auth/users/${userId}`)
+        .get(`/users/${userId}`)
         .set('Authorization', `Bearer ${regularToken}`)
-        .expect(404); // Endpoint is likely not implemented yet
+        .expect(401);
     });
 
     it('should return 404 for non-existent user', async () => {
-      // Login as admin
       const { accessToken: adminToken } = await loginUser(admin.username, admin.password);
-
-      // Try to access non-existent user
       return request(app.getHttpServer())
         .get('/auth/users/999999')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -308,18 +300,12 @@ describe('Authentication (e2e)', () => {
 
   describe('6. Role-based access control', () => {
     it('should allow admin to create rounds', async () => {
-      // Login as admin
       const { accessToken: adminToken } = await loginUser(admin.username, admin.password);
-
-      // Try to create a round
-      const response = await request(app.getHttpServer())
+      return request(app.getHttpServer())
         .post('/rounds')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({});
-
-      // This might return 201 if implemented or another code if not fully implemented yet
-      expect(response.status).toBeGreaterThanOrEqual(200);
-      expect(response.status).toBeLessThan(500);
+        .send({})
+        .expect(201);
     });
 
     it('should deny regular user from creating rounds', async () => {

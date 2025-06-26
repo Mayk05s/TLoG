@@ -19,7 +19,7 @@ import { RoundDto } from './dto/round.dto';
 import { RoundWithStatsDto } from './dto/round-with-stats.dto';
 
 @ApiTags('Rounds')
-@ApiBearerAuth('JWT-auth')
+@ApiBearerAuth('access-token')
 @Controller('rounds')
 @UseGuards(JwtAuthGuard)
 export class RoundsController {
