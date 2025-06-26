@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Exclude, Expose } from 'class-transformer';
+import { SerializationGroup } from '../../../common/enums/serialization-group.enum';
 
 @Exclude()
 export class UserDto {
@@ -12,11 +13,11 @@ export class UserDto {
   @ApiProperty({ description: 'Username' })
   username: string;
 
-  @Expose({ groups: ['admin'] })
+  @Expose({ groups: [SerializationGroup.ADMIN] })
   @ApiProperty({ enum: Role, description: 'User role' })
   role: Role;
 
-  @Expose({ groups: ['auth'] })
+  @Expose({ groups: [SerializationGroup.SELF] })
   @ApiPropertyOptional({ description: 'Account creation date' })
   createdAt?: Date;
 

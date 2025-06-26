@@ -5,7 +5,8 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
-import { CurrentUserDto } from '../users/dto/current-user.dto';
+import { UserDto } from '../users/dto/user.dto';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -14,10 +15,10 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(username: string, password: string): Promise<CurrentUserDto | null> {
+  async validateUser(username: string, password: string): Promise<User | null> {
     const user = await this.usersService.findByUsername(username);
     if (user && (await bcrypt.compare(password, user.password))) {
-      return new CurrentUserDto(user);
+      return user;
     }
     return null;
   }
@@ -49,9 +50,7 @@ export class AuthService {
     };
 
     const newUser = await this.usersService.create(createUserDto);
-    const userDto = new CurrentUserDto(newUser);
-
-    return this.generateTokens(userDto);
+    return this.generateTokens(newUser);
   }
 
   async refresh(user: any): Promise<AuthResponseDto> {
@@ -60,18 +59,16 @@ export class AuthService {
     if (!freshUser) {
       throw new UnauthorizedException('User not found');
     }
-
-    const userDto = new CurrentUserDto(freshUser);
-    return this.generateTokens(userDto);
+    return this.generateTokens(freshUser);
   }
 
-  private generateTokens(user: CurrentUserDto): AuthResponseDto {
+  private generateTokens(user: User): AuthResponseDto {
     const payload = { username: user.username, sub: user.id, role: user.role };
 
-    return {
+    return new AuthResponseDto({
       accessToken: this.jwtService.sign(payload),
       refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
-      user: user,
-    };
+      user: new UserDto(user),
+    });
   }
 }

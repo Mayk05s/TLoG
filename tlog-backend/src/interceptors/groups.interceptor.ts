@@ -2,7 +2,8 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { classToPlain, plainToInstance } from 'class-transformer';
+import { classToPlain } from 'class-transformer';
+import { SerializationGroup } from '../common/enums/serialization-group.enum';
 
 @Injectable()
 export class GroupsInterceptor implements NestInterceptor {
@@ -13,44 +14,43 @@ export class GroupsInterceptor implements NestInterceptor {
     const user = request.user as { id: string; role: string } | undefined;
 
     // Build groups array based on user context
-    const groups = ['public'];
+    const groups = [SerializationGroup.PUBLIC];
 
-    if (user) {
-      groups.push('auth');
-    }
-
-    if (user?.role === 'admin') {
-      groups.push('admin');
+    // Add auth group for authenticated users OR for auth endpoints (login/signup)
+    if (user || this.isAuthEndpoint(request)) {
+      groups.push(SerializationGroup.AUTH);
     }
 
     // Check if user is accessing their own resource
-    if (user && request.params.id && user.id === request.params.id) {
-      groups.push('self');
+    const targetUserId = request.params.id;
+    if (user && targetUserId && user.id === targetUserId) {
+      groups.push(SerializationGroup.SELF);
+    }
+
+    if (user?.role === 'admin') {
+      groups.push(SerializationGroup.ADMIN);
     }
 
     return next.handle().pipe(
       map(data => {
         if (!data) return data;
 
-        // Convert to plain object first, then apply transformation with groups
-        const plainData = classToPlain(data);
-
-        // Handle arrays of objects
-        if (Array.isArray(plainData)) {
-          return plainData.map(item =>
-            plainToInstance(data[0]?.constructor || Object, item, {
-              groups,
-              excludeExtraneousValues: true,
-            }),
-          );
-        }
-
-        // Handle single objects
-        return plainToInstance(data.constructor, plainData, {
+        // Convert to plain object with groups
+        const result = classToPlain(data, {
           groups,
           excludeExtraneousValues: true,
         });
+
+        console.log('Serialization result:', result);
+        return result;
       }),
+    );
+  }
+
+  private isAuthEndpoint(request: any): boolean {
+    const url = request.url || request.originalUrl || '';
+    return (
+      url.includes('/auth/login') || url.includes('/auth/signup') || url.includes('/auth/refresh')
     );
   }
 }

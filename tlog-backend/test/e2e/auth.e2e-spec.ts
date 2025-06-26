@@ -57,8 +57,17 @@ describe('Authentication (e2e)', () => {
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
       expect(response.body.user).toBeDefined();
-      expect(response.body.user.username).toBe(newUser.username);
-      expect(response.body.user.role).toBe(newUser.role);
+
+      // Test DTO serialization in signup response
+      const user = response.body.user;
+      expect(user.id).toBeDefined();
+      expect(user.username).toBe(newUser.username);
+      expect(user.role).toBe(newUser.role);
+      expect(user.createdAt).toBeDefined(); // Should be visible for auth group
+
+      // Sensitive fields should not be present
+      expect(user.password).toBeUndefined();
+      expect(user.passwordHash).toBeUndefined();
     });
 
     it('should fail registration with password validation errors', async () => {
@@ -99,6 +108,12 @@ describe('Authentication (e2e)', () => {
       expect(adminResponse.status).toBe(201);
       expect(adminResponse.body.user.role).toBe('admin');
 
+      // Test admin user DTO serialization
+      expect(adminResponse.body.user.id).toBeDefined();
+      expect(adminResponse.body.user.username).toBe('admin');
+      expect(adminResponse.body.user.createdAt).toBeDefined();
+      expect(adminResponse.body.user.password).toBeUndefined();
+
       // Create nikita user with lowercase
       const nikitaResponse = await request(app.getHttpServer())
         .post('/auth/signup')
@@ -107,6 +122,12 @@ describe('Authentication (e2e)', () => {
       expect(nikitaResponse.status).toBe(201);
       expect(nikitaResponse.body.user.role).toBe('nikita');
 
+      // Test nikita user DTO serialization
+      expect(nikitaResponse.body.user.id).toBeDefined();
+      expect(nikitaResponse.body.user.username).toBe('nikita');
+      expect(nikitaResponse.body.user.createdAt).toBeDefined();
+      expect(nikitaResponse.body.user.password).toBeUndefined();
+
       // Create regular user
       const regularResponse = await request(app.getHttpServer())
         .post('/auth/signup')
@@ -114,6 +135,12 @@ describe('Authentication (e2e)', () => {
 
       expect(regularResponse.status).toBe(201);
       expect(regularResponse.body.user.role).toBe('survivor');
+
+      // Test survivor user DTO serialization
+      expect(regularResponse.body.user.id).toBeDefined();
+      expect(regularResponse.body.user.username).toBe('admin_as_user');
+      expect(regularResponse.body.user.createdAt).toBeDefined();
+      expect(regularResponse.body.user.password).toBeUndefined();
     });
 
     it('should fail registration for duplicate username', async () => {
@@ -145,6 +172,17 @@ describe('Authentication (e2e)', () => {
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
+
+      // Test DTO serialization in login response
+      const user = response.body.user;
+      expect(user.id).toBeDefined();
+      expect(user.username).toBe(regularUser.username);
+      expect(user.role).toBe('survivor');
+      expect(user.createdAt).toBeDefined(); // Should be visible for auth group
+
+      // Sensitive fields should not be present
+      expect(user.password).toBeUndefined();
+      expect(user.passwordHash).toBeUndefined();
     });
 
     it('should login admin successfully', async () => {
@@ -153,6 +191,14 @@ describe('Authentication (e2e)', () => {
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
+
+      // Test admin user DTO serialization in login response
+      const user = response.body.user;
+      expect(user.id).toBeDefined();
+      expect(user.username).toBe(admin.username);
+      expect(user.role).toBe('admin');
+      expect(user.createdAt).toBeDefined();
+      expect(user.password).toBeUndefined();
     });
 
     it('should login nikita user successfully', async () => {
@@ -162,6 +208,13 @@ describe('Authentication (e2e)', () => {
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
       expect(response.body.user.role).toBe('nikita');
+
+      // Test nikita user DTO serialization in login response
+      const user = response.body.user;
+      expect(user.id).toBeDefined();
+      expect(user.username).toBe(nikita.username);
+      expect(user.createdAt).toBeDefined();
+      expect(user.password).toBeUndefined();
     });
 
     it('should fail login with invalid credentials', () => {
@@ -201,10 +254,16 @@ describe('Authentication (e2e)', () => {
         .expect(res => {
           expect(res.body.username).toBeDefined();
           expect(res.body.role).toBeDefined();
+
+          // Test profile DTO serialization
+          expect(res.body.id).toBeDefined();
+          expect(res.body.createdAt).toBeDefined(); // Should be visible for self group
+          expect(res.body.password).toBeUndefined();
+          expect(res.body.passwordHash).toBeUndefined();
         });
     });
 
-    it('should get complete and correct profile information', async () => {
+    it('should get complete and correct profile information for survivor', async () => {
       // First login to get a token
       const { accessToken } = await loginUser(regularUser.username, regularUser.password);
 
@@ -214,10 +273,66 @@ describe('Authentication (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`);
 
       expect(response.status).toBe(200);
+
+      // Test survivor profile DTO serialization
+      console.log('Survivor profile response:', JSON.stringify(response.body, null, 2));
+
       expect(response.body.id).toBeDefined();
       expect(response.body.username).toBe(regularUser.username);
       expect(response.body.role).toBe(Role.survivor);
+      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
+
+      // Sensitive fields should not be present
       expect(response.body.password).toBeUndefined();
+      expect(response.body.passwordHash).toBeUndefined();
+    });
+
+    it('should get complete and correct profile information for admin', async () => {
+      // First login to get a token
+      const { accessToken } = await loginUser(admin.username, admin.password);
+
+      // Then access the profile with the token
+      const response = await request(app.getHttpServer())
+        .get('/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(response.status).toBe(200);
+
+      // Test admin profile DTO serialization
+      console.log('Admin profile response:', JSON.stringify(response.body, null, 2));
+
+      expect(response.body.id).toBeDefined();
+      expect(response.body.username).toBe(admin.username);
+      expect(response.body.role).toBe('admin');
+      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
+
+      // Sensitive fields should not be present
+      expect(response.body.password).toBeUndefined();
+      expect(response.body.passwordHash).toBeUndefined();
+    });
+
+    it('should get complete and correct profile information for nikita', async () => {
+      // First login to get a token
+      const { accessToken } = await loginUser(nikita.username, nikita.password);
+
+      // Then access the profile with the token
+      const response = await request(app.getHttpServer())
+        .get('/auth/profile')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+      expect(response.status).toBe(200);
+
+      // Test nikita profile DTO serialization
+      console.log('Nikita profile response:', JSON.stringify(response.body, null, 2));
+
+      expect(response.body.id).toBeDefined();
+      expect(response.body.username).toBe(nikita.username);
+      expect(response.body.role).toBe('nikita');
+      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
+
+      // Sensitive fields should not be present
+      expect(response.body.password).toBeUndefined();
+      expect(response.body.passwordHash).toBeUndefined();
     });
 
     it('should fail to get profile without token', () => {

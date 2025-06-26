@@ -31,7 +31,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     if (!user) {
       throw new UnauthorizedException();
     }
-    // if (!user || !user.isActive) throw new UnauthorizedException();
     return new CurrentUserDto(user);
   }
 }
