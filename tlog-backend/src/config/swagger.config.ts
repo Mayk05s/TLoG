@@ -1,30 +1,19 @@
-// Swagger configuration for MokuField FSM API (Fastify only)
-// All comments must be in English
-import { INestApplication } from '@nestjs/common';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-export function setupSwagger(app: INestApplication) {
-  const config = new DocumentBuilder()
+/**
+ * Настраивает Swagger документацию для API
+ *
+ * @param app NestFastifyApplication экземпляр
+ */
+export function setupSwagger(app: NestFastifyApplication): void {
+  const options = new DocumentBuilder()
     .setTitle('The Last of Guss API')
-    .setDescription('API documentation for The Last of Guss API platform')
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'Authorization',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'access-token',
-    )
+    .setDescription('REST endpoints for the game')
+    .setVersion('1.0.0')
+    .addBearerAuth()
     .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  });
+  const document = SwaggerModule.createDocument(app, options);
+  SwaggerModule.setup('docs', app, document);
 }

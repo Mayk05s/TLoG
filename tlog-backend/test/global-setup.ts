@@ -1,7 +1,7 @@
 // This import must be first to load environment variables before anything else
 // eslint-disable-next-line import/order
 import './load-env'; // Import and execute directly, without assignment
-import { seedTestData } from '../prisma/seed.test';
+import { seedTestData } from './data/seed.test';
 import { PrismaClient } from '@prisma/client';
 import { buildDatabaseUrl } from '../src/config/profiles/db.config';
 import { execSync } from 'child_process';

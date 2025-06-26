@@ -1,11 +1,11 @@
 import * as request from 'supertest';
 import { Role } from '@prisma/client';
-import { INestApplication } from '@nestjs/common';
-import { createTestingApp, prisma } from '../test-utils';
-import { TEST_USERS } from '../test-users';
+import { closeTestingApp, createTestingApp, prisma } from '../test-utils';
+import { TEST_USERS } from '../data/test-users';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
 
 describe('Authentication (e2e)', () => {
-  let app: INestApplication;
+  let app: NestFastifyApplication;
   // Variables to store values during tests
   let regularUserAccessToken: string;
   let regularUserRefreshToken: string;
@@ -18,10 +18,11 @@ describe('Authentication (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestingApp();
+    // Database is already cleaned by global-setup.ts
   });
 
   afterAll(async () => {
-    await app.close();
+    await closeTestingApp(app);
     await prisma.$disconnect();
   });
 

@@ -1,40 +1,20 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from './config/config.service';
+import { createFastifyAdapter, setupApp } from './app.setup';
 import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter({
-      logger: false, // Disable Fastify's logger as we're using Pino
-      disableRequestLogging: true,
-      ignoreTrailingSlash: true,
-      caseSensitive: false,
-      bodyLimit: 10 * 1024 * 1024, // 10MB
-    }),
-  );
-
-  app.enableCors();
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, createFastifyAdapter());
+  await setupApp(app);
   setupSwagger(app);
 
   const configService = app.get(ConfigService);
   const port = configService.port;
 
   const logger = new Logger('Application');
-
-  // Start server and log info
   await app.listen(port, '0.0.0.0');
   logger.log(`🚀 Application successfully started on: ${await app.getUrl()}`);
 }
