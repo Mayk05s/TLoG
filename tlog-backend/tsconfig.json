@@ -17,5 +17,8 @@
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true
+  },
+  "jest": {
+    "jestConfigFile": "./test/jest-e2e.json"
   }
 }
