@@ -2,7 +2,7 @@ import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nes
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { plainToInstance } from 'class-transformer';
+import { classToPlain, plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class GroupsInterceptor implements NestInterceptor {
@@ -32,13 +32,24 @@ export class GroupsInterceptor implements NestInterceptor {
       map(data => {
         if (!data) return data;
 
+        // Convert to plain object first, then apply transformation with groups
+        const plainData = classToPlain(data);
+
         // Handle arrays of objects
-        if (Array.isArray(data)) {
-          return data.map(item => plainToInstance(item.constructor, item, { groups }));
+        if (Array.isArray(plainData)) {
+          return plainData.map(item =>
+            plainToInstance(data[0]?.constructor || Object, item, {
+              groups,
+              excludeExtraneousValues: true,
+            }),
+          );
         }
 
         // Handle single objects
-        return plainToInstance(data.constructor, data, { groups });
+        return plainToInstance(data.constructor, plainData, {
+          groups,
+          excludeExtraneousValues: true,
+        });
       }),
     );
   }

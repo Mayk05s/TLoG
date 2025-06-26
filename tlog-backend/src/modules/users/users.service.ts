@@ -20,16 +20,6 @@ export class UsersService {
     });
   }
 
-  async findByIdAsDto(id: string): Promise<UserDto | null> {
-    const user = await this.findById(id);
-    return user ? new UserDto(user) : null;
-  }
-
-  async findByUsernameAsDto(username: string): Promise<UserDto | null> {
-    const user = await this.findByUsername(username);
-    return user ? new UserDto(user) : null;
-  }
-
   determineRole(username: string): Role {
     const lowerUsername = username.toLowerCase();
 

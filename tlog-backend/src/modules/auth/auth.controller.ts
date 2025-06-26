@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentUserDto } from '../users/dto/current-user.dto';
+import { UserDto } from '../users/dto/user.dto';
 import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')
@@ -38,7 +39,7 @@ export class AuthController {
   @Get('profile')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  getProfile(@CurrentUser() user: CurrentUserDto): CurrentUserDto {
-    return user;
+  getProfile(@CurrentUser() user: CurrentUserDto): UserDto {
+    return new UserDto(user);
   }
 }

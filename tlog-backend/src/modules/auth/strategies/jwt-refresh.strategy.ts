@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '../../../config/config.service';
 import { UsersService } from '../../users/users.service';
 import { Request } from 'express';
+import { CurrentUserDto } from '../../users/dto/current-user.dto';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -18,7 +19,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     });
   }
 
-  async validate(req: Request, payload: { sub: string }) {
+  async validate(req: Request, payload: { sub: string }): Promise<CurrentUserDto> {
     // Compatible with both Express and Fastify
     const authHeader = req.headers?.authorization || req.get?.('Authorization');
     const refreshToken = authHeader?.replace('Bearer', '').trim();
@@ -26,7 +27,11 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token not found');
     }
-
-    return this.usersService.findById(payload.sub);
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    // if (!user || !user.isActive) throw new UnauthorizedException();
+    return new CurrentUserDto(user);
   }
 }
