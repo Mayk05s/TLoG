@@ -1,16 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import { Exclude, Expose } from 'class-transformer';
 
+@Exclude()
 export class UserDto {
-  @ApiProperty({ example: 1 })
+  @Expose()
+  @ApiProperty({ description: 'User ID' })
   id: string;
 
-  @ApiProperty({ example: 'john_doe' })
+  @Expose()
+  @ApiProperty({ description: 'Username' })
   username: string;
 
-  @ApiProperty({ enum: Role, example: 'survivor' })
+  @Expose({ groups: ['admin'] })
+  @ApiProperty({ enum: Role, description: 'User role' })
   role: Role;
 
-  @ApiProperty({ example: '2025-06-24T19:56:50.000Z' })
-  createdAt: Date;
+  @Expose({ groups: ['auth'] })
+  @ApiPropertyOptional({ description: 'Account creation date' })
+  createdAt?: Date;
+
+  // password and passwordHash are not exposed to any group (sensitive data)
+  // They will be automatically excluded
+
+  constructor(partial: Partial<UserDto>) {
+    Object.assign(this, partial);
+  }
 }

@@ -5,6 +5,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { UsersService } from '../users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { CurrentUserDto } from '../users/dto/current-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -16,8 +17,7 @@ export class AuthService {
   async validateUser(username: string, password: string): Promise<any> {
     const user = await this.usersService.findByUsername(username);
     if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
+      return new CurrentUserDto(user);
     }
     return null;
   }
@@ -49,9 +49,9 @@ export class AuthService {
     };
 
     const newUser = await this.usersService.create(createUserDto);
-    const { password: _, ...userResult } = newUser;
+    const userDto = new CurrentUserDto(newUser);
 
-    return this.generateTokens(userResult);
+    return this.generateTokens(userDto);
   }
 
   async refresh(user: any): Promise<AuthResponseDto> {
@@ -61,22 +61,17 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const { password: _, ...userResult } = freshUser;
-    return this.generateTokens(userResult);
+    const userDto = new CurrentUserDto(freshUser);
+    return this.generateTokens(userDto);
   }
 
-  private generateTokens(user: any): AuthResponseDto {
+  private generateTokens(user: CurrentUserDto): AuthResponseDto {
     const payload = { username: user.username, sub: user.id, role: user.role };
 
     return {
       accessToken: this.jwtService.sign(payload),
       refreshToken: this.jwtService.sign(payload, { expiresIn: '7d' }),
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
+      user: user,
     };
   }
 }

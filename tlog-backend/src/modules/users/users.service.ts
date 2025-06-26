@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { Role, User } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +18,16 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { username },
     });
+  }
+
+  async findByIdAsDto(id: string): Promise<UserDto | null> {
+    const user = await this.findById(id);
+    return user ? new UserDto(user) : null;
+  }
+
+  async findByUsernameAsDto(username: string): Promise<UserDto | null> {
+    const user = await this.findByUsername(username);
+    return user ? new UserDto(user) : null;
   }
 
   determineRole(username: string): Role {
@@ -43,5 +54,10 @@ export class UsersService {
         role,
       },
     });
+  }
+
+  async createAsDto(createUserDto: CreateUserDto): Promise<UserDto> {
+    const user = await this.create(createUserDto);
+    return new UserDto(user);
   }
 }
