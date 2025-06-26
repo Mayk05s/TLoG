@@ -1,8 +1,7 @@
 import * as request from 'supertest';
 import { Role } from '@prisma/client';
-import { Test } from '@nestjs/testing';
-import { AppModule } from '../../src/app.module';
 import { INestApplication } from '@nestjs/common';
+import { createTestingApp, prisma } from '../test-utils';
 
 describe('Authentication (e2e)', () => {
   let app: INestApplication;
@@ -14,13 +13,12 @@ describe('Authentication (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    await app.init();
+    app = await createTestingApp();
   });
 
   afterAll(async () => {
     await app.close();
+    await prisma.$disconnect();
   });
 
   describe('1. Registration', () => {
@@ -55,7 +53,7 @@ describe('Authentication (e2e)', () => {
       await prisma.user.create({
         data: {
           username: 'duplicate_user',
-          passwordHash: 'somehashedpassword', // Changed from password to passwordHash
+          password: 'somehashedpassword', // Using password field per schema
           role: Role.survivor,
         },
       });

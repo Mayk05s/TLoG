@@ -1,9 +1,11 @@
+// This import must be first to load environment variables before anything else
+// eslint-disable-next-line import/order
+import './load-env'; // Import and execute directly, without assignment
+import { seedTestData } from '../prisma/seed.test';
 import { PrismaClient } from '@prisma/client';
 import { buildDatabaseUrl } from '../src/config/profiles/db.config';
 import { execSync } from 'child_process';
-import { seedTestData } from '../prisma/seed.test';
 
-process.env.DB_NAME = 'tlog_test_db_1';
 module.exports = async () => {
   const dbName = process.env.DB_NAME;
   const { host, port, username, password, url: baseUrl } = buildDatabaseUrl();
