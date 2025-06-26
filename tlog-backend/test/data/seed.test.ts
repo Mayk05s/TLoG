@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { TEST_USERS } from './test-users';
 
@@ -12,7 +12,7 @@ export async function seedTestData(client = prisma) {
   await client.user.deleteMany();
 
   // Create test users with proper roles using centralized credentials
-  const { admin, regularUser, nikita } = TEST_USERS;
+  const { admin, nikita, regularUser } = TEST_USERS;
 
   // Hash passwords for the users
   const adminPasswordHash = await bcrypt.hash(admin.password, 10);
@@ -24,17 +24,17 @@ export async function seedTestData(client = prisma) {
       {
         username: admin.username,
         password: adminPasswordHash,
-        role: admin.role,
+        role: Role.admin,
       },
       {
         username: regularUser.username,
         password: userPasswordHash,
-        role: regularUser.role,
+        role: Role.survivor,
       },
       {
         username: nikita.username,
         password: nikitaPasswordHash,
-        role: nikita.role,
+        role: Role.nikita,
       },
     ],
   });
