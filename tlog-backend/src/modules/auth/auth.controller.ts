@@ -7,7 +7,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { CurrentUserDto } from '../user/dto/current-user.dto';
+import { CurrentUserDto } from '../users/dto/current-user.dto';
 import { Public } from './decorators/public.decorator';
 
 @ApiTags('auth')

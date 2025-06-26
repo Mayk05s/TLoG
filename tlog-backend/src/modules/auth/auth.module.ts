@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtAccessStrategy } from './strategies/jwt-access.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { RolesGuard } from './guards/roles.guard';
-import { UsersModule } from '../user/users.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [

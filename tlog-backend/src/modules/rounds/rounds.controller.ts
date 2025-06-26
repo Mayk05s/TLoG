@@ -1,4 +1,5 @@
 import { Controller, Get, Param, ParseUUIDPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoundsService } from './rounds.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -14,6 +15,8 @@ interface RequestWithUser extends FastifyRequest {
   };
 }
 
+@ApiTags('Rounds')
+@ApiBearerAuth('JWT-auth')
 @Controller('rounds')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RoundsController {
