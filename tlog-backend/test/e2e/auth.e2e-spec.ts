@@ -110,7 +110,7 @@ describe('Authentication (e2e)', () => {
       // Create regular user
       const regularResponse = await request(app.getHttpServer())
         .post('/auth/signup')
-        .send({ username: 'admin_test', password: 'Password123!' });
+        .send({ username: 'admin_as_user', password: 'Password123!' });
 
       expect(regularResponse.status).toBe(201);
       expect(regularResponse.body.user.role).toBe('survivor');
@@ -127,7 +127,7 @@ describe('Authentication (e2e)', () => {
       });
       const response = await request(app.getHttpServer()).post('/auth/signup').send({
         username,
-        password: 'Password123',
+        password: 'Password123!',
       });
 
       expect(response.status).toBe(409);
