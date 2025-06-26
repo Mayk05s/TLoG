@@ -1,13 +1,13 @@
 import { Controller, Get, NotFoundException, Param, UseGuards } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUserDto } from './dto/current-user.dto';
-import { plainToInstance } from 'class-transformer';
+import { UserDto } from './dto/user.dto';
 
 @ApiTags('Users')
+@ApiBearerAuth('access-token')
 @Controller('users')
 export class UsersController {
   constructor(private readonly userService: UsersService) {}
@@ -15,11 +15,11 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get(':id')
-  async getUserById(@Param('id') id: string): Promise<CurrentUserDto> {
+  async getUserById(@Param('id') id: string): Promise<UserDto> {
     const user = await this.userService.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return plainToInstance(CurrentUserDto, user, { excludeExtraneousValues: false });
+    return new UserDto(user);
   }
 }

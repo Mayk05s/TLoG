@@ -21,9 +21,6 @@ export class UserDto {
   @ApiPropertyOptional({ description: 'Account creation date' })
   createdAt?: Date;
 
-  // password and passwordHash are not exposed to any group (sensitive data)
-  // They will be automatically excluded
-
   constructor(partial: Partial<UserDto>) {
     Object.assign(this, partial);
   }

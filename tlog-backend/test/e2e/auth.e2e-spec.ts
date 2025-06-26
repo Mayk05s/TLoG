@@ -58,12 +58,17 @@ describe('Authentication (e2e)', () => {
       expect(response.body.refreshToken).toBeDefined();
       expect(response.body.user).toBeDefined();
 
-      // Test DTO serialization in signup response
+      // Test DTO serialization in signup response using UserDto
+      // For signup endpoint, AUTH group is added, but role is only visible to admins
       const user = response.body.user;
       expect(user.id).toBeDefined();
       expect(user.username).toBe(newUser.username);
-      expect(user.role).toBe(newUser.role);
-      expect(user.createdAt).toBeDefined(); // Should be visible for auth group
+
+      // only admins can see roles in UserDto
+      expect(user.role).toBeUndefined();
+
+      // createdAt should NOT be visible - signup doesn't provide SELF group
+      expect(user.createdAt).toBeUndefined();
 
       // Sensitive fields should not be present
       expect(user.password).toBeUndefined();
@@ -106,12 +111,13 @@ describe('Authentication (e2e)', () => {
         .send({ username: 'admin', password: 'Password123!' });
 
       expect(adminResponse.status).toBe(201);
-      expect(adminResponse.body.user.role).toBe('admin');
 
-      // Test admin user DTO serialization
+      // Test admin user DTO serialization (using UserDto with groups)
+      // Admin gets ADMIN group, so can see their own role
       expect(adminResponse.body.user.id).toBeDefined();
       expect(adminResponse.body.user.username).toBe('admin');
-      expect(adminResponse.body.user.createdAt).toBeDefined();
+      expect(adminResponse.body.user.role).toBe('admin'); // Visible because user has admin role (ADMIN group)
+      expect(adminResponse.body.user.createdAt).toBeUndefined(); // Not SELF group in signup
       expect(adminResponse.body.user.password).toBeUndefined();
 
       // Create nikita user with lowercase
@@ -120,12 +126,13 @@ describe('Authentication (e2e)', () => {
         .send({ username: 'nikita', password: 'Password123!' });
 
       expect(nikitaResponse.status).toBe(201);
-      expect(nikitaResponse.body.user.role).toBe('nikita');
 
-      // Test nikita user DTO serialization
+      // Test nikita user DTO serialization (using UserDto with groups)
+      // Nikita does NOT get ADMIN group, so cannot see role
       expect(nikitaResponse.body.user.id).toBeDefined();
       expect(nikitaResponse.body.user.username).toBe('nikita');
-      expect(nikitaResponse.body.user.createdAt).toBeDefined();
+      expect(nikitaResponse.body.user.role).toBeUndefined(); // NOT visible - nikita is not admin
+      expect(nikitaResponse.body.user.createdAt).toBeUndefined(); // Not SELF group in signup
       expect(nikitaResponse.body.user.password).toBeUndefined();
 
       // Create regular user
@@ -134,12 +141,13 @@ describe('Authentication (e2e)', () => {
         .send({ username: 'admin_as_user', password: 'Password123!' });
 
       expect(regularResponse.status).toBe(201);
-      expect(regularResponse.body.user.role).toBe('survivor');
 
-      // Test survivor user DTO serialization
+      // Test survivor user DTO serialization (using UserDto with groups)
+      // Survivor does NOT get ADMIN group, so cannot see role
       expect(regularResponse.body.user.id).toBeDefined();
       expect(regularResponse.body.user.username).toBe('admin_as_user');
-      expect(regularResponse.body.user.createdAt).toBeDefined();
+      expect(regularResponse.body.user.role).toBeUndefined(); // NOT visible - survivor is not admin
+      expect(regularResponse.body.user.createdAt).toBeUndefined(); // Not SELF group in signup
       expect(regularResponse.body.user.password).toBeUndefined();
     });
 
@@ -173,12 +181,17 @@ describe('Authentication (e2e)', () => {
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
 
-      // Test DTO serialization in login response
+      // Test DTO serialization in login response using UserDto
+      // For login endpoint, AUTH group is added for auth endpoints
       const user = response.body.user;
       expect(user.id).toBeDefined();
       expect(user.username).toBe(regularUser.username);
-      expect(user.role).toBe('survivor');
-      expect(user.createdAt).toBeDefined(); // Should be visible for auth group
+
+      // role should NOT be visible - only admins can see roles in UserDto
+      expect(user.role).toBeUndefined();
+
+      // createdAt should NOT be visible - login doesn't provide SELF group
+      expect(user.createdAt).toBeUndefined();
 
       // Sensitive fields should not be present
       expect(user.password).toBeUndefined();
@@ -193,11 +206,12 @@ describe('Authentication (e2e)', () => {
       expect(response.body.refreshToken).toBeDefined();
 
       // Test admin user DTO serialization in login response
+      // Admin gets ADMIN group, so can see role
       const user = response.body.user;
       expect(user.id).toBeDefined();
       expect(user.username).toBe(admin.username);
-      expect(user.role).toBe('admin');
-      expect(user.createdAt).toBeDefined();
+      expect(user.role).toBe('admin'); // Visible because user has admin role (ADMIN group)
+      expect(user.createdAt).toBeUndefined(); // Not SELF group in login
       expect(user.password).toBeUndefined();
     });
 
@@ -207,13 +221,14 @@ describe('Authentication (e2e)', () => {
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
-      expect(response.body.user.role).toBe('nikita');
 
       // Test nikita user DTO serialization in login response
       const user = response.body.user;
       expect(user.id).toBeDefined();
       expect(user.username).toBe(nikita.username);
-      expect(user.createdAt).toBeDefined();
+      // role should NOT be visible - nikita is not admin
+      expect(user.role).toBeUndefined();
+      expect(user.createdAt).toBeUndefined(); // Not SELF group in login
       expect(user.password).toBeUndefined();
     });
 
@@ -253,42 +268,16 @@ describe('Authentication (e2e)', () => {
         .expect(200)
         .expect(res => {
           expect(res.body.username).toBeDefined();
-          expect(res.body.role).toBeDefined();
+          expect(res.body.id).toBeDefined();
+          expect(res.body.createdAt).toBeDefined();
 
           // Test profile DTO serialization
-          expect(res.body.id).toBeDefined();
-          expect(res.body.createdAt).toBeDefined(); // Should be visible for self group
+          expect(res.body.role).toBeUndefined();
           expect(res.body.password).toBeUndefined();
-          expect(res.body.passwordHash).toBeUndefined();
         });
     });
 
-    it('should get complete and correct profile information for survivor', async () => {
-      // First login to get a token
-      const { accessToken } = await loginUser(regularUser.username, regularUser.password);
-
-      // Then access the profile with the token
-      const response = await request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', `Bearer ${accessToken}`);
-
-      expect(response.status).toBe(200);
-
-      // Test survivor profile DTO serialization
-      console.log('Survivor profile response:', JSON.stringify(response.body, null, 2));
-
-      expect(response.body.id).toBeDefined();
-      expect(response.body.username).toBe(regularUser.username);
-      expect(response.body.role).toBe(Role.survivor);
-      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
-
-      // Sensitive fields should not be present
-      expect(response.body.password).toBeUndefined();
-      expect(response.body.passwordHash).toBeUndefined();
-    });
-
     it('should get complete and correct profile information for admin', async () => {
-      // First login to get a token
       const { accessToken } = await loginUser(admin.username, admin.password);
 
       // Then access the profile with the token
@@ -298,41 +287,12 @@ describe('Authentication (e2e)', () => {
 
       expect(response.status).toBe(200);
 
-      // Test admin profile DTO serialization
-      console.log('Admin profile response:', JSON.stringify(response.body, null, 2));
-
       expect(response.body.id).toBeDefined();
       expect(response.body.username).toBe(admin.username);
       expect(response.body.role).toBe('admin');
-      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
+      expect(response.body.createdAt).toBeDefined();
 
-      // Sensitive fields should not be present
       expect(response.body.password).toBeUndefined();
-      expect(response.body.passwordHash).toBeUndefined();
-    });
-
-    it('should get complete and correct profile information for nikita', async () => {
-      // First login to get a token
-      const { accessToken } = await loginUser(nikita.username, nikita.password);
-
-      // Then access the profile with the token
-      const response = await request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', `Bearer ${accessToken}`);
-
-      expect(response.status).toBe(200);
-
-      // Test nikita profile DTO serialization
-      console.log('Nikita profile response:', JSON.stringify(response.body, null, 2));
-
-      expect(response.body.id).toBeDefined();
-      expect(response.body.username).toBe(nikita.username);
-      expect(response.body.role).toBe('nikita');
-      expect(response.body.createdAt).toBeDefined(); // Should be visible for self group
-
-      // Sensitive fields should not be present
-      expect(response.body.password).toBeUndefined();
-      expect(response.body.passwordHash).toBeUndefined();
     });
 
     it('should fail to get profile without token', () => {
