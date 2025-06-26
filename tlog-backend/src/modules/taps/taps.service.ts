@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { Role } from '@prisma/client';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class TapsService {
@@ -25,7 +24,7 @@ export class TapsService {
 
       // Check if round is active (started but not ended)
       const now = new Date();
-      if (now < round.starts_at || now > round.ends_at) {
+      if (now < round.startsAt || now > round.endsAt) {
         throw new ConflictException('Round is not active');
       }
 

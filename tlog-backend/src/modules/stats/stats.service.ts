@@ -39,8 +39,8 @@ export class StatsService {
     });
 
     const now = new Date();
-    const isActive = now >= round.starts_at && now <= round.ends_at;
-    const isFinished = now > round.ends_at;
+    const isActive = now >= round.startsAt && now <= round.endsAt;
+    const isFinished = now > round.endsAt;
 
     // Find the winner (player with most points)
     const winner = allStats.length > 0 ? allStats[0] : null;

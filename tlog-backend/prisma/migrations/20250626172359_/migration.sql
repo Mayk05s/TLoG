@@ -15,8 +15,8 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "Round" (
     "id" UUID NOT NULL,
-    "starts_at" TIMESTAMP(3) NOT NULL,
-    "ends_at" TIMESTAMP(3) NOT NULL,
+    "startsAt" TIMESTAMP(3) NOT NULL,
+    "endsAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Round_pkey" PRIMARY KEY ("id")

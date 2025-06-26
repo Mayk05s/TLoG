@@ -6,7 +6,17 @@ export const buildSwaggerDocument = (app: INestApplication) => {
     .setTitle('The Last of Guss API')
     .setDescription('REST endpoints for the game')
     .setVersion('1.0.0')
-    .addCookieAuth('jwt')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
     .build();
 
   return SwaggerModule.createDocument(app, config);

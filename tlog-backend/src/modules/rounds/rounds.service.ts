@@ -31,8 +31,8 @@ export class RoundsService {
 
     return this.prisma.round.create({
       data: {
-        starts_at: startsAt,
-        ends_at: endsAt,
+        startsAt: startsAt,
+        endsAt: endsAt,
       },
     });
   }
@@ -45,6 +45,6 @@ export class RoundsService {
     }
 
     const now = new Date();
-    return now >= round.starts_at && now <= round.ends_at;
+    return now >= round.startsAt && now <= round.endsAt;
   }
 }

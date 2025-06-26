@@ -25,8 +25,8 @@ model User {
 
 model Round {
   id               String             @id @default(uuid()) @db.Uuid
-  starts_at        DateTime
-  ends_at          DateTime
+  startsAt DateTime
+  endsAt   DateTime
   createdAt        DateTime           @default(now())
   playerRoundStats PlayerRoundStats[]
   tapEvents        TapEvent[]
