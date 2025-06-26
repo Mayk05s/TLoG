@@ -2,6 +2,7 @@ import * as request from 'supertest';
 import { Role } from '@prisma/client';
 import { INestApplication } from '@nestjs/common';
 import { createTestingApp, prisma } from '../test-utils';
+import { TEST_USERS } from '../test-users';
 
 describe('Authentication (e2e)', () => {
   let app: INestApplication;
@@ -11,6 +12,9 @@ describe('Authentication (e2e)', () => {
   let adminAccessToken: string;
   let adminRefreshToken: string;
   let userId: string;
+
+  // Extract test users for better readability
+  const { admin, regularUser, newUser, weakPasswordUser, duplicateUser } = TEST_USERS;
 
   beforeAll(async () => {
     app = await createTestingApp();
@@ -25,14 +29,14 @@ describe('Authentication (e2e)', () => {
     it('should register a new user successfully', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/signup')
-        .send({ username: 'testuser', password: 'Password123!' });
+        .send({ username: newUser.username, password: newUser.password });
 
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
       expect(response.body.refreshToken).toBeDefined();
       expect(response.body.user).toBeDefined();
-      expect(response.body.user.username).toBe('testuser');
-      expect(response.body.user.role).toBe('survivor');
+      expect(response.body.user.username).toBe(newUser.username);
+      expect(response.body.user.role).toBe(newUser.role);
 
       // Store values for later tests
       regularUserAccessToken = response.body.accessToken;
@@ -43,7 +47,7 @@ describe('Authentication (e2e)', () => {
     it('should fail registration with password validation errors', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/signup')
-        .send({ username: 'usertest', password: 'password' });
+        .send({ username: weakPasswordUser.username, password: weakPasswordUser.password });
 
       expect(response.status).toBe(400);
     });
@@ -52,16 +56,17 @@ describe('Authentication (e2e)', () => {
       // First create a user with the same username
       await prisma.user.create({
         data: {
-          username: 'duplicate_user',
+          username: duplicateUser.username,
           password: 'somehashedpassword', // Using password field per schema
           role: Role.survivor,
         },
       });
 
       // Now try to register with the same username
-      const response = await request(app.getHttpServer())
-        .post('/auth/signup')
-        .send({ username: 'duplicate_user', password: 'Password123!' });
+      const response = await request(app.getHttpServer()).post('/auth/signup').send({
+        username: duplicateUser.username,
+        password: duplicateUser.password,
+      });
 
       expect(response.status).toBe(409);
       expect(response.body.message).toContain('already exists');
@@ -72,7 +77,7 @@ describe('Authentication (e2e)', () => {
     it('should login successfully with valid credentials', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ username: 'testuser', password: 'Password123!' });
+        .send({ username: regularUser.username, password: regularUser.password });
 
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
@@ -85,7 +90,7 @@ describe('Authentication (e2e)', () => {
     it('should login admin successfully', async () => {
       const response = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ username: 'admin', password: 'Admin123!' });
+        .send({ username: admin.username, password: admin.password });
 
       expect(response.status).toBe(201);
       expect(response.body.accessToken).toBeDefined();
@@ -98,7 +103,7 @@ describe('Authentication (e2e)', () => {
     it('should fail login with invalid credentials', () => {
       return request(app.getHttpServer())
         .post('/auth/login')
-        .send({ username: 'testuser', password: 'wrongpassword' })
+        .send({ username: regularUser.username, password: 'wrongpassword' })
         .expect(401);
     });
   });
