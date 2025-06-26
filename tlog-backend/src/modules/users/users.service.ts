@@ -8,6 +8,14 @@ import { UserDto } from './dto/user.dto';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findAll(): Promise<UserDto[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return users.map(user => new UserDto(user));
+  }
+
   async findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({
       where: { id },
