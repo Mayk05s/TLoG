@@ -23,7 +23,6 @@ export class RoundDto {
   createdAt: number;
 
   constructor(partial: any) {
-    // Просто присваиваем все поля - Transform декораторы сделают свою работу при сериализации
     Object.assign(this, partial);
   }
 }
