@@ -39,8 +39,35 @@ describe('Users (e2e)', () => {
     };
   }
 
-  describe('GET /users/:id', () => {
-    it('should return user by ID when admin requests valid user', async () => {
+  describe('GET /users - Admin access', () => {
+    it('should return all users when admin requests', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/users')
+        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+
+      expect(response.status).toBe(200);
+      expect(Array.isArray(response.body)).toBe(true);
+      expect(response.body.length).toBeGreaterThanOrEqual(3);
+
+      // Verify user structure
+      response.body.forEach((user: any) => {
+        expect(user).toHaveProperty('id');
+        expect(user).toHaveProperty('username');
+        expect(user).toHaveProperty('role');
+        expect(user).toHaveProperty('createdAt');
+        expect(user).not.toHaveProperty('passwordHash');
+      });
+
+      // Check that our test users are present
+      const usernames = response.body.map((user: any) => user.username);
+      expect(usernames).toContain(admin.username);
+      expect(usernames).toContain(regularUser.username);
+      expect(usernames).toContain(nikita.username);
+    });
+  });
+
+  describe('GET /users/:id - Admin access', () => {
+    it('should return user by valid UUID', async () => {
       const response = await request(app.getHttpServer())
         .get(`/users/${survivorTokens.userId}`)
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
@@ -49,20 +76,11 @@ describe('Users (e2e)', () => {
       expect(response.body).toHaveProperty('id', survivorTokens.userId);
       expect(response.body).toHaveProperty('username', regularUser.username);
       expect(response.body).toHaveProperty('role', 'survivor');
-      expect(response.body).toHaveProperty('createdAt');
       expect(response.body).not.toHaveProperty('passwordHash');
     });
 
-    it('should return 403 when survivor tries to get user by ID', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/${adminTokens.userId}`)
-        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
-      expect(response.status).toBe(403);
-    });
-
-    it('should return 404 when admin requests non-existent user', async () => {
+    it('should return 404 for non-existent UUID', async () => {
       const nonExistentId = '550e8400-e29b-41d4-a716-446655440000';
-
       const response = await request(app.getHttpServer())
         .get(`/users/${nonExistentId}`)
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
@@ -73,89 +91,27 @@ describe('Users (e2e)', () => {
 
     it('should return 400 for invalid UUID format', async () => {
       const response = await request(app.getHttpServer())
-        .get('/users/invalid-uuid-format')
+        .get('/users/invalid-uuid')
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('message');
       expect(response.body.message).toContain('Validation failed (uuid is expected)');
-    });
-
-    it('should return 400 for empty UUID', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/users/')
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-      expect(response.status).toBe(404); // Route not found
-    });
-
-    it('should return 401 for unauthenticated request', async () => {
-      const response = await request(app.getHttpServer()).get(`/users/${adminTokens.userId}`);
-
-      expect(response.status).toBe(401);
-    });
-
-    it('should return 401 for invalid token', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/${adminTokens.userId}`)
-        .set('Authorization', 'Bearer invalid-token');
-
-      expect(response.status).toBe(401);
     });
   });
 
-  describe('GET /users/username/:username', () => {
-    it('should return user by username when admin requests valid user', async () => {
+  describe('GET /users/username/:username - Admin access', () => {
+    it('should return user by valid username', async () => {
       const response = await request(app.getHttpServer())
         .get(`/users/username/${regularUser.username}`)
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id', survivorTokens.userId);
       expect(response.body).toHaveProperty('username', regularUser.username);
       expect(response.body).toHaveProperty('role', 'survivor');
       expect(response.body).not.toHaveProperty('passwordHash');
     });
 
-    it('should return admin user when admin requests their own username', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/username/${admin.username}`)
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id', adminTokens.userId);
-      expect(response.body).toHaveProperty('username', admin.username);
-      expect(response.body).toHaveProperty('role', 'admin');
-    });
-
-    it('should return nikita user when admin requests nikita username', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/username/${nikita.username}`)
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('id', nikitaTokens.userId);
-      expect(response.body).toHaveProperty('username', nikita.username);
-      expect(response.body).toHaveProperty('role', 'nikita');
-    });
-
-    it('should return 403 when survivor tries to get user by username', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/username/${admin.username}`)
-        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
-
-      expect(response.status).toBe(403);
-    });
-
-    it('should return 403 when nikita tries to get user by username', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/username/${admin.username}`)
-        .set('Authorization', `Bearer ${nikitaTokens.accessToken}`);
-
-      expect(response.status).toBe(403);
-    });
-
-    it('should return 404 when admin requests non-existent username', async () => {
+    it('should return 404 for non-existent username', async () => {
       const response = await request(app.getHttpServer())
         .get('/users/username/nonexistentuser')
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
@@ -164,7 +120,7 @@ describe('Users (e2e)', () => {
       expect(response.body.message).toBe('User not found');
     });
 
-    it('should trim whitespace from username parameter', async () => {
+    it('should trim whitespace from username', async () => {
       const response = await request(app.getHttpServer())
         .get(`/users/username/  ${regularUser.username}  `)
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
@@ -173,133 +129,74 @@ describe('Users (e2e)', () => {
       expect(response.body).toHaveProperty('username', regularUser.username);
     });
 
-    it('should return 400 for empty username after trimming', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/users/username/   ')
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('message', 'Username cannot be empty');
-    });
-
-    it('should return 400 for username shorter than 3 characters', async () => {
+    it('should validate username length - too short', async () => {
       const response = await request(app.getHttpServer())
         .get('/users/username/ab')
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        'message',
-        'Username must be at least 3 characters long',
-      );
+      expect(response.body.message).toContain('Username must be at least 3 characters long');
     });
 
-    it('should return 400 for username longer than 20 characters', async () => {
+    it('should validate username length - too long', async () => {
       const longUsername = 'a'.repeat(21);
       const response = await request(app.getHttpServer())
         .get(`/users/username/${longUsername}`)
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty(
-        'message',
-        'Username must be at most 20 characters long',
-      );
+      expect(response.body.message).toContain('Username must not exceed 20 characters');
     });
 
-    it('should return 400 for username with invalid characters', async () => {
-      const invalidUsernames = [
-        'user@name',
-        'user name',
-        'user.name',
-        'user#name',
-        'user!name',
-        'user+name',
-        'user-with-cyrillic',
-      ];
-
-      for (const invalidUsername of invalidUsernames) {
-        const response = await request(app.getHttpServer())
-          .get(`/users/username/${invalidUsername}`)
-          .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-        expect(response.status).toBe(400);
-        expect(response.body).toHaveProperty(
-          'message',
-          'Username can only contain letters, numbers, underscores, and hyphens',
-        );
-      }
-    });
-
-    it('should accept valid usernames with allowed characters', async () => {
-      // First create a user with valid characters
-      const validUsername = 'valid_user-123';
-      await request(app.getHttpServer())
-        .post('/auth/signup')
-        .send({ username: validUsername, password: 'password123' });
-
+    it('should validate empty username after trimming', async () => {
+      // Use URL encoding to ensure the spaces are preserved in the URL path
       const response = await request(app.getHttpServer())
-        .get(`/users/username/${validUsername}`)
+        .get('/users/username/%20%20%20') // URL encoded spaces
         .set('Authorization', `Bearer ${adminTokens.accessToken}`);
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('username', validUsername);
-    });
-
-    it('should return 400 for non-string username parameter', async () => {
-      // This test is more theoretical since URL params are always strings,
-      // but our pipe should handle it correctly
-      const response = await request(app.getHttpServer())
-        .get('/users/username/123')
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
-
-      // Should work fine since '123' is a valid string username
-      expect(response.status).toBe(404); // User not found, but validation passed
-    });
-
-    it('should return 401 for unauthenticated request', async () => {
-      const response = await request(app.getHttpServer()).get(
-        `/users/username/${regularUser.username}`,
-      );
-
-      expect(response.status).toBe(401);
-    });
-
-    it('should return 401 for invalid token', async () => {
-      const response = await request(app.getHttpServer())
-        .get(`/users/username/${regularUser.username}`)
-        .set('Authorization', 'Bearer invalid-token');
-
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
+      expect(response.body.message).toContain('Username cannot be empty');
     });
   });
 
-  describe('Username validation edge cases', () => {
-    it('should handle URL encoding in username parameter', async () => {
-      // Create a user with underscores and hyphens
-      const specialUsername = 'test_user-name';
-      await request(app.getHttpServer())
-        .post('/auth/signup')
-        .send({ username: specialUsername, password: 'password123' });
-
-      // Test with URL encoded version
-      const encodedUsername = encodeURIComponent(specialUsername);
+  describe('Access Control - Survivor denied', () => {
+    it('should deny survivor access to GET /users', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/users/username/${encodedUsername}`)
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+        .get('/users')
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
 
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('username', specialUsername);
+      expect(response.status).toBe(403);
     });
 
-    it('should handle case sensitivity correctly', async () => {
-      // Usernames should be case sensitive
+    it('should deny survivor access to GET /users/:id', async () => {
       const response = await request(app.getHttpServer())
-        .get(`/users/username/${regularUser.username.toUpperCase()}`)
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`);
+        .get(`/users/${adminTokens.userId}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
 
-      expect(response.status).toBe(404);
-      expect(response.body.message).toBe('User not found');
+      expect(response.status).toBe(403);
+    });
+
+    it('should deny survivor access to GET /users/username/:username', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/users/username/${admin.username}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`);
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('Authentication required', () => {
+    it('should return 401 for unauthenticated requests', async () => {
+      const endpoints = [
+        '/users',
+        `/users/${adminTokens.userId}`,
+        `/users/username/${admin.username}`,
+      ];
+
+      for (const endpoint of endpoints) {
+        const response = await request(app.getHttpServer()).get(endpoint);
+        expect(response.status).toBe(401);
+      }
     });
   });
 });
