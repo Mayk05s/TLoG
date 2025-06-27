@@ -33,11 +33,7 @@ export class TapsService {
     // Получаем текущие счетчики игрока
     const counters = await this.tapCache.getCounters(roundId, userId);
 
-    return {
-      success: true,
-      playerPoints: counters.points,
-      totalTaps: tapCount,
-    };
+    return { success: true };
   }
 
   /**
