@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { RoundDto } from './dto/round.dto';
 import { RoundStatus } from './enums/round-status.enum';
+import { Round } from '@prisma/client';
 
 @Injectable()
 export class RoundsService {
@@ -75,5 +76,21 @@ export class RoundsService {
 
     const now = new Date();
     return now >= round.startsAt && now <= round.endsAt;
+  }
+
+  async getActiveRound(roundId: string): Promise<Round> {
+    const round: Round | null = await this.prisma.round.findUnique({
+      where: { id: roundId },
+    });
+    if (!round) {
+      throw new NotFoundException('Round not found');
+    }
+
+    const now = new Date();
+    if (now < round.startsAt || now > round.endsAt) {
+      throw new ConflictException('Round is not active');
+    }
+
+    return round;
   }
 }

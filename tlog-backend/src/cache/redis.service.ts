@@ -51,6 +51,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.hgetall(key);
   }
 
+  async hget(key: string, field: string): Promise<string | null> {
+    return this.client.hget(key, field);
+  }
+
+  async hset(key: string, field: string, value: string): Promise<number> {
+    return this.client.hset(key, field, value);
+  }
+
+  async del(key: string): Promise<number> {
+    return this.client.del(key);
+  }
+
   async zincrby(key: string, increment: number, member: string): Promise<string> {
     return this.client.zincrby(key, increment, member);
   }
@@ -123,5 +135,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.error('Redis health check failed:', error);
       return false;
     }
+  }
+
+  // Direct access to Redis client for complex operations
+  getClient(): Redis {
+    return this.client;
   }
 }

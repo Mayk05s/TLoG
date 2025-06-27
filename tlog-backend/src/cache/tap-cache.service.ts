@@ -7,86 +7,64 @@ import { join } from 'path';
 @Injectable()
 export class TapCacheService implements OnModuleInit {
   private readonly logger = new Logger(TapCacheService.name);
-  private tapDeltaSha: string;
   private tapIncSha: string;
+  private tapIncrementWithCheckSha: string;
+  private tapGetAndResetSha: string;
 
   constructor(private readonly redisService: RedisService) {}
 
   async onModuleInit() {
     // Load Lua scripts from files - use source directory, not dist
     const scriptsPath = join(process.cwd(), 'src', 'cache', 'scripts');
-    const tapDeltaLua = readFileSync(join(scriptsPath, 'tap_delta.lua'), 'utf8');
     const tapIncLua = readFileSync(join(scriptsPath, 'tap_inc.lua'), 'utf8');
+    const tapIncrementWithCheckLua = readFileSync(
+      join(scriptsPath, 'tap_increment_with_check.lua'),
+      'utf8',
+    );
+    const tapGetAndResetLua = readFileSync(join(scriptsPath, 'tap_get_and_reset.lua'), 'utf8');
 
     // Load scripts once at startup
-    this.tapDeltaSha = await this.redisService.scriptLoad(tapDeltaLua);
     this.tapIncSha = await this.redisService.scriptLoad(tapIncLua);
+    this.tapIncrementWithCheckSha = await this.redisService.scriptLoad(tapIncrementWithCheckLua);
+    this.tapGetAndResetSha = await this.redisService.scriptLoad(tapGetAndResetLua);
   }
 
-  /**
-   * Add taps and points delta for a user in a round
-   * @param roundId Round identifier
-   * @param userId User identifier
-   * @param tapsInc Number of taps to add
-   * @param pointsInc Number of points to add
-   * @returns Updated user stats as array from HGETALL
-   */
-  async addDelta(
+  async incrementTap(roundId: string, userId: string): Promise<number> {
+    const result = await this.redisService.evalsha(this.tapIncSha, 0, roundId, userId);
+    return result as number;
+  }
+
+  async getAndResetTaps(
     roundId: string,
     userId: string,
-    tapsInc: number,
-    pointsInc: number,
-  ): Promise<string[]> {
+  ): Promise<{ tapsToSync: number; currentTime: number }> {
     const result = await this.redisService.evalsha(
-      this.tapDeltaSha,
-      0, // KEYS len
-      roundId,
-      userId,
-      tapsInc,
-      pointsInc,
-    );
-    return result as string[];
-  }
-
-  /**
-   * Increment taps by 1 for a user in a round (no points)
-   * @param roundId Round identifier
-   * @param userId User identifier
-   * @returns Updated user stats as array from HGETALL
-   */
-  async incrementTap(roundId: string, userId: string): Promise<string[]> {
-    const result = await this.redisService.evalsha(
-      this.tapIncSha,
+      this.tapGetAndResetSha,
       0, // KEYS len
       roundId,
       userId,
     );
-    return result as string[];
+
+    const [tapsToSync, currentTime] = result as number[];
+
+    return { tapsToSync, currentTime };
   }
 
-  /**
-   * Get current counters for a user in a round
-   * @param roundId Round identifier
-   * @param userId User identifier
-   * @returns Object with taps and points counts
-   */
-  async getCounters(roundId: string, userId: string): Promise<{ taps: number; points: number }> {
-    const hkey = RedisTapKeys.userStatsKey(roundId, userId);
-    const stats = await this.redisService.hgetall(hkey);
-    return {
-      taps: parseInt(stats.taps || '0', 10),
-      points: parseInt(stats.points || '0', 10),
-    };
+  async getPendingTaps(roundId: string, userId: string): Promise<number> {
+    const tapsKey = RedisTapKeys.userStatsKey(roundId, userId);
+    const taps = await this.redisService.hget(tapsKey, 'taps');
+    return parseInt(taps || '0', 10);
   }
 
-  /**
-   * Get only tap count for a user in a round
-   * @param roundId Round identifier
-   * @param userId User identifier
-   * @returns Current tap count
-   */
-  async getTapCount(roundId: string, userId: string): Promise<number> {
-    const { taps } = await this.getCounters(roundId, userId);
-    return taps;
+  async getLastSync(roundId: string, userId: string): Promise<number> {
+    const lastSyncKey = RedisTapKeys.lastSyncKey(roundId, userId);
+    const lastSync = await this.redisService.get(lastSyncKey);
+    return parseInt(lastSync || '0', 10);
+  }
+
+  async updateLastSync(roundId: string, userId: string): Promise<void> {
+    const lastSyncKey = RedisTapKeys.lastSyncKey(roundId, userId);
+    const now = Date.now();
+    await this.redisService.set(lastSyncKey, now.toString());
   }
 }
