@@ -44,4 +44,6 @@ module.exports = async () => {
     console.error('Error deploying migrations:', error);
     process.exit(1);
   }
+
+  console.log('🚀 Test environment ready');
 };

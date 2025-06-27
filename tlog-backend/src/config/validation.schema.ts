@@ -20,7 +20,7 @@ export const validationSchema = Joi.object({
   // Redis configuration
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().default(6379),
-  REDIS_PASSWORD: Joi.string().optional(),
+  REDIS_PASSWORD: Joi.string().allow('').optional(),
   REDIS_DB: Joi.number().default(0),
   INSTANCE_ID: Joi.string().optional(),
   BATCH_LOCK_TTL_MS: Joi.number().default(5000),

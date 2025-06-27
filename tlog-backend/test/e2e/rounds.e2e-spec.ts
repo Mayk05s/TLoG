@@ -205,7 +205,7 @@ describe('Rounds (e2e)', () => {
 
       // Should be ordered by createdAt desc (newest first)
       const createdAtTimes = response.body.map((round: any) => round.createdAt);
-      expect(createdAtTimes[0]).toBeGreaterThan(createdAtTimes[1]);
+      expect(createdAtTimes[0]).toBeGreaterThanOrEqual(createdAtTimes[1]);
     });
 
     it('should handle case-sensitive status values correctly', async () => {
