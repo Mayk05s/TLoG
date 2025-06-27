@@ -66,12 +66,8 @@ describe('Taps (e2e)', () => {
     };
   }
 
-  async function createTestRound() {
-    const now = new Date();
-    // Create round directly in database with Prisma to bypass API validation
-    const startsAt = new Date(now.getTime() - 5000); // Started 5 seconds ago
-    const endsAt = new Date(now.getTime() + 300000); // End in 5 minutes
-
+  // Helper function to create round directly in database
+  async function createRoundInDb(startsAt: Date, endsAt: Date): Promise<string> {
     const round = await prisma.round.create({
       data: {
         startsAt,
@@ -79,7 +75,16 @@ describe('Taps (e2e)', () => {
       },
     });
 
-    roundId = round.id;
+    return round.id;
+  }
+
+  async function createTestRound() {
+    const now = new Date();
+    // Create round directly in database with Prisma to bypass API validation
+    const startsAt = new Date(now.getTime() - 5000); // Started 5 seconds ago
+    const endsAt = new Date(now.getTime() + 300000); // End in 5 minutes
+
+    roundId = await createRoundInDb(startsAt, endsAt);
 
     // Add small delay to ensure round is processed
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -117,47 +122,39 @@ describe('Taps (e2e)', () => {
     });
 
     it('should reject taps during cooldown period', async () => {
-      // Create a round that hasn't started yet
+      // Create a round that hasn't started yet using helper function
       const now = new Date();
       const futureStartsAt = new Date(now.getTime() + 5000); // Starts in 5 seconds
       const futureEndsAt = new Date(now.getTime() + 15000);
 
-      const roundResponse = await request(app.getHttpServer())
-        .post('/rounds')
-        .set('Authorization', `Bearer ${adminTokens.accessToken}`)
-        .send({
-          startsAt: futureStartsAt.toISOString(),
-          endsAt: futureEndsAt.toISOString(),
-        })
-        .expect(201);
+      // Use API for this test since we need to test API validation behavior
+      const roundId = await createRoundInDb(futureStartsAt, futureEndsAt);
 
       // Try to tap during cooldown
       await request(app.getHttpServer())
-        .post(`/tap/${roundResponse.body.id}`)
+        .post(`/tap/${roundId}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
         .expect(409); // Conflict - round not active
 
       // Clean up
-      await prisma.round.delete({ where: { id: roundResponse.body.id } });
+      await prisma.round.delete({ where: { id: roundId } });
     });
 
     it('should reject taps after round ends', async () => {
-      // Create a round that ends quickly
+      // Create a round that ended using helper function
       const now = new Date();
-      const endedRound = await prisma.round.create({
-        data: {
-          startsAt: new Date(now.getTime() - 10000), // Started 10 seconds ago
-          endsAt: new Date(now.getTime() - 1000), // Ended 1 second ago
-        },
-      });
+      const startsAt = new Date(now.getTime() - 10000); // Started 10 seconds ago
+      const endsAt = new Date(now.getTime() - 1000); // Ended 1 second ago
+
+      const endedRoundId = await createRoundInDb(startsAt, endsAt);
 
       await request(app.getHttpServer())
-        .post(`/tap/${endedRound.id}`)
+        .post(`/tap/${endedRoundId}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
         .expect(409); // Conflict - round ended
 
       // Clean up
-      await prisma.round.delete({ where: { id: endedRound.id } });
+      await prisma.round.delete({ where: { id: endedRoundId } });
     }, 10000); // Increase timeout for this test
   });
 
