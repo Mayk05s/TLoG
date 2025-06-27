@@ -1,57 +1,68 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { BatchService } from '../taps/batch.service';
 
 @Injectable()
 export class StatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly batchService: BatchService,
+  ) {}
 
-  async getRoundStats(roundId: string, userId: string) {
-    const round = await this.prisma.round.findUnique({
-      where: { id: roundId },
-    });
+  /**
+   * Get points for a specific user in a round (hybrid: DB + Redis)
+   */
+  async myPoints(roundId: string, userId: string): Promise<number> {
+    const stats = await this.batchService.getUserRoundStats(roundId, userId);
+    return stats.points;
+  }
 
-    if (!round) {
-      return { error: 'Round not found' };
-    }
+  /**
+   * Get leaderboard for a round (hybrid: DB + Redis)
+   */
+  async leaderboard(roundId: string, limit: number = 10) {
+    const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
 
-    // Get stats for all players in this round
-    const allStats = await this.prisma.playerRoundStats.findMany({
-      where: { roundId: roundId },
-      orderBy: { points: 'desc' },
-      include: {
-        user: {
-          select: {
-            username: true,
-            role: true,
-          },
-        },
-      },
-    });
+    // Apply limit and return in the expected format
+    return leaderboard.slice(0, limit).map(entry => ({
+      userId: entry.userId,
+      username: entry.username,
+      role: entry.role,
+      taps: entry.totalClicks,
+      points: entry.points,
+    }));
+  }
 
-    // Get the current user's stats
-    const myStats = await this.prisma.playerRoundStats.findUnique({
-      where: {
-        roundId_userId: {
-          roundId: roundId,
-          userId: userId,
-        },
-      },
-    });
+  /**
+   * Get comprehensive stats for a round
+   */
+  async roundStats(roundId: string) {
+    const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
 
-    const now = new Date();
-    const isActive = now >= round.startsAt && now <= round.endsAt;
-    const isFinished = now > round.endsAt;
-
-    // Find the winner (player with most points)
-    const winner = allStats.length > 0 ? allStats[0] : null;
+    const totalTaps = leaderboard.reduce((sum, entry) => sum + entry.totalClicks, 0);
+    const totalPlayers = leaderboard.length;
+    const winner = leaderboard[0] || null;
 
     return {
-      round,
-      stats: allStats,
-      myStats: myStats || { taps: 0, points: 0 },
-      isActive,
-      isFinished,
-      winner: isFinished ? winner : null,
+      roundId,
+      totalTaps,
+      totalPlayers,
+      winner: winner
+        ? {
+            userId: winner.userId,
+            username: winner.username,
+            points: winner.points,
+            taps: winner.totalClicks,
+          }
+        : null,
+      leaderboard: leaderboard.slice(0, 10), // Top 10
     };
+  }
+
+  /**
+   * Get detailed user stats for a round
+   */
+  async userRoundStats(roundId: string, userId: string) {
+    return this.batchService.getUserRoundStats(roundId, userId);
   }
 }

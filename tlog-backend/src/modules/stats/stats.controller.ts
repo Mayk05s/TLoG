@@ -20,6 +20,6 @@ export class StatsController {
     @Param('id', ParseUUIDPipe) roundId: string,
     @CurrentUser() user: CurrentUserDto,
   ) {
-    return this.statsService.getRoundStats(roundId, user.id);
+    return this.statsService.roundStats(roundId);
   }
 }

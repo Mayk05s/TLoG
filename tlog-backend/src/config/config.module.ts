@@ -8,13 +8,14 @@ import { validationSchema } from './validation.schema';
 import appConfig from './profiles/app.config';
 import dbConfig from './profiles/db.config';
 import jwtConfig from './profiles/jwt.config';
+import { redisConfig } from './profiles/redis.config';
 
 @Global()
 @Module({
   imports: [
     NestConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, dbConfig, jwtConfig],
+      load: [appConfig, dbConfig, jwtConfig, redisConfig],
       validationSchema,
     }),
   ],
