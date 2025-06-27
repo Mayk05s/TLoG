@@ -5,10 +5,11 @@ import { GameModule } from './modules/game.module';
 import { LoggerModule } from './logger/logger.module';
 import { ConfigRootModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './cache/redis.module';
 import { GroupsInterceptor } from './interceptors/groups.interceptor';
 
 @Module({
-  imports: [ConfigRootModule, LoggerModule, DatabaseModule, GameModule],
+  imports: [ConfigRootModule, LoggerModule, DatabaseModule, RedisModule, GameModule],
   controllers: [AppController],
   providers: [
     {

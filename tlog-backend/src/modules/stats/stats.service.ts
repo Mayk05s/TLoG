@@ -1,27 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { BatchService } from '../taps/batch.service';
 
 @Injectable()
 export class StatsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly batchService: BatchService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Get points for a specific user in a round (hybrid: DB + Redis)
    */
   async myPoints(roundId: string, userId: string): Promise<number> {
-    const stats = await this.batchService.getUserRoundStats(roundId, userId);
-    return stats.points;
+    // const stats = await this.batchService.getUserRoundStats(roundId, userId);
+    // return stats.points;
+    return 0;
   }
 
   /**
    * Get leaderboard for a round (hybrid: DB + Redis)
    */
   async leaderboard(roundId: string, limit: number = 10) {
-    const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
+    // const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
+    const leaderboard = [] as any[];
 
     // Apply limit and return in the expected format
     return leaderboard.slice(0, limit).map(entry => ({
@@ -37,8 +35,8 @@ export class StatsService {
    * Get comprehensive stats for a round
    */
   async roundStats(roundId: string) {
-    const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
-
+    // const leaderboard = await this.batchService.getRoundLeaderboard(roundId);
+    const leaderboard = [] as any[];
     const totalTaps = leaderboard.reduce((sum, entry) => sum + entry.totalClicks, 0);
     const totalPlayers = leaderboard.length;
     const winner = leaderboard[0] || null;
@@ -57,12 +55,5 @@ export class StatsService {
         : null,
       leaderboard: leaderboard.slice(0, 10), // Top 10
     };
-  }
-
-  /**
-   * Get detailed user stats for a round
-   */
-  async userRoundStats(roundId: string, userId: string) {
-    return this.batchService.getUserRoundStats(roundId, userId);
   }
 }

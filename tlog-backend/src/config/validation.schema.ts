@@ -18,14 +18,15 @@ export const validationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().optional(),
 
   // Redis configuration
-  REDIS_HOST: Joi.string().default('localhost'),
-  REDIS_PORT: Joi.number().default(6379),
-  REDIS_PASSWORD: Joi.string().allow('').optional(),
-  REDIS_DB: Joi.number().default(0),
+  REDIS_HOST: Joi.string().optional(),
+  REDIS_PORT: Joi.number().optional(),
+  REDIS_PASSWORD: Joi.string().required(),
+  REDIS_DB: Joi.number().optional(),
+
   INSTANCE_ID: Joi.string().optional(),
-  BATCH_LOCK_TTL_MS: Joi.number().default(5000),
+  BATCH_LOCK_TTL_MS: Joi.number().optional(),
 
   // Batching configuration
-  BATCH_SIZE: Joi.number().default(100),
-  BATCH_TIMEOUT_SECONDS: Joi.number().default(10),
+  BATCH_SIZE: Joi.number().optional(),
+  BATCH_TIMEOUT_SECONDS: Joi.number().optional(),
 });

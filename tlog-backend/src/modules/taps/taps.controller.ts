@@ -1,5 +1,4 @@
 import { Controller, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import { TapsService } from './taps.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -12,7 +11,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 @ApiTags('Taps')
 @Controller('tap')
 @ApiBearerAuth('access-token')
-@UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class TapsController {
   constructor(private readonly tapsService: TapsService) {}
 
