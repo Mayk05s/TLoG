@@ -14,6 +14,15 @@ import { CurrentUserDto } from '../users/dto/current-user.dto';
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 
+  @Get('my-points/:roundId')
+  @Roles(Role.admin, Role.nikita, Role.survivor)
+  async getMyPoints(
+    @Param('roundId', ParseUUIDPipe) roundId: string,
+    @CurrentUser() user: CurrentUserDto,
+  ) {
+    return this.statsService.myPoints(roundId, user.id);
+  }
+
   @Get('rounds/:id')
   @Roles(Role.admin, Role.nikita, Role.survivor)
   async getRoundStats(
