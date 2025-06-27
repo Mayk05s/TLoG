@@ -6,4 +6,17 @@ export class RedisTapKeys {
   static lastSyncKey(roundId: string, userId: string): string {
     return `round:${roundId}:user:${userId}:last_sync`;
   }
+
+  // New keys for scoring system
+  static userPointsKey(roundId: string, userId: string): string {
+    return `round:${roundId}:user:${userId}:points`;
+  }
+
+  static leaderboardKey(roundId: string): string {
+    return `round:${roundId}:leaderboard`;
+  }
+
+  static flushQueueKey(roundId: string): string {
+    return `round:${roundId}:flush_queue`;
+  }
 }

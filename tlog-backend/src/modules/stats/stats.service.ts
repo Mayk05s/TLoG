@@ -40,10 +40,9 @@ export class StatsService {
       _sum: { clickCount: true },
     });
 
-    // Получаем несохраненные клики из Redis
-    const redisTaps = await this.tapCache.getPendingTaps(roundId, userId);
+    const redisCounters = await this.tapCache.getCounters(roundId, userId);
 
-    return (dbTaps._sum.clickCount || 0) + redisTaps;
+    return (dbTaps._sum.clickCount || 0) + redisCounters.tapCount;
   }
 
   /**

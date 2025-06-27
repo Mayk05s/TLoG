@@ -7,64 +7,84 @@ import { join } from 'path';
 @Injectable()
 export class TapCacheService implements OnModuleInit {
   private readonly logger = new Logger(TapCacheService.name);
-  private tapIncSha: string;
-  private tapIncrementWithCheckSha: string;
-  private tapGetAndResetSha: string;
+  private tapDeltaSha: string;
 
   constructor(private readonly redisService: RedisService) {}
 
   async onModuleInit() {
-    // Load Lua scripts from files - use source directory, not dist
+    // Load tap_delta.lua script
     const scriptsPath = join(process.cwd(), 'src', 'cache', 'scripts');
-    const tapIncLua = readFileSync(join(scriptsPath, 'tap_inc.lua'), 'utf8');
-    const tapIncrementWithCheckLua = readFileSync(
-      join(scriptsPath, 'tap_increment_with_check.lua'),
-      'utf8',
-    );
-    const tapGetAndResetLua = readFileSync(join(scriptsPath, 'tap_get_and_reset.lua'), 'utf8');
-
-    // Load scripts once at startup
-    this.tapIncSha = await this.redisService.scriptLoad(tapIncLua);
-    this.tapIncrementWithCheckSha = await this.redisService.scriptLoad(tapIncrementWithCheckLua);
-    this.tapGetAndResetSha = await this.redisService.scriptLoad(tapGetAndResetLua);
+    const tapDeltaLua = readFileSync(join(scriptsPath, 'tap_delta.lua'), 'utf8');
+    this.tapDeltaSha = await this.redisService.scriptLoad(tapDeltaLua);
   }
 
-  async incrementTap(roundId: string, userId: string): Promise<number> {
-    const result = await this.redisService.evalsha(this.tapIncSha, 0, roundId, userId);
-    return result as number;
-  }
-
-  async getAndResetTaps(
+  /**
+   * Process tap with atomic scoring logic
+   * Returns both tap count and points earned
+   */
+  async addDelta(
     roundId: string,
     userId: string,
-  ): Promise<{ tapsToSync: number; currentTime: number }> {
-    const result = await this.redisService.evalsha(
-      this.tapGetAndResetSha,
-      0, // KEYS len
-      roundId,
-      userId,
+    isNikita: boolean,
+  ): Promise<{ tapCount: number; points: number }> {
+    const keys = [
+      RedisTapKeys.userTapsKey(roundId, userId), // tap counter
+      RedisTapKeys.userPointsKey(roundId, userId), // points counter
+      RedisTapKeys.leaderboardKey(roundId), // leaderboard
+      RedisTapKeys.flushQueueKey(roundId), // flush queue
+    ];
+
+    const args = [userId, isNikita ? '1' : '0'];
+
+    const [tapCount, points] = (await this.redisService.evalsha(
+      this.tapDeltaSha,
+      keys.length,
+      ...keys,
+      ...args,
+    )) as [number, number];
+
+    return { tapCount, points };
+  }
+
+  /**
+   * Get current counters for a user in a round
+   */
+  async getCounters(
+    roundId: string,
+    userId: string,
+  ): Promise<{ tapCount: number; points: number }> {
+    const [tapCount, points] = await Promise.all([
+      this.redisService.get(RedisTapKeys.userTapsKey(roundId, userId)),
+      this.redisService.get(RedisTapKeys.userPointsKey(roundId, userId)),
+    ]);
+
+    return {
+      tapCount: parseInt(tapCount || '0'),
+      points: parseInt(points || '0'),
+    };
+  }
+
+  /**
+   * Get leaderboard for a round
+   */
+  async getLeaderboard(roundId: string, limit: number = 10): Promise<string[]> {
+    return this.redisService.zrevrange(
+      RedisTapKeys.leaderboardKey(roundId),
+      0,
+      limit - 1,
+      'WITHSCORES',
     );
-
-    const [tapsToSync, currentTime] = result as number[];
-
-    return { tapsToSync, currentTime };
   }
 
-  async getPendingTaps(roundId: string, userId: string): Promise<number> {
-    const tapsKey = RedisTapKeys.userTapsKey(roundId, userId);
-    const taps = await this.redisService.get(tapsKey);
-    return parseInt(taps || '0', 10);
-  }
-
-  async getLastSync(roundId: string, userId: string): Promise<number> {
-    const lastSyncKey = RedisTapKeys.lastSyncKey(roundId, userId);
-    const lastSync = await this.redisService.get(lastSyncKey);
-    return parseInt(lastSync || '0', 10);
-  }
-
-  async updateLastSync(roundId: string, userId: string): Promise<void> {
-    const lastSyncKey = RedisTapKeys.lastSyncKey(roundId, userId);
-    const now = Date.now();
-    await this.redisService.set(lastSyncKey, now.toString());
+  /**
+   * Get flush queue items for batch processing
+   */
+  async getFlushQueue(roundId: string): Promise<string[]> {
+    const queueKey = RedisTapKeys.flushQueueKey(roundId);
+    const items = await this.redisService.lrange(queueKey, 0, -1);
+    if (items.length > 0) {
+      await this.redisService.del(queueKey);
+    }
+    return items;
   }
 }

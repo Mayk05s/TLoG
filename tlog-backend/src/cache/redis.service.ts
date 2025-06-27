@@ -141,4 +141,28 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   getClient(): Redis {
     return this.client;
   }
+
+  async zrevrange(
+    key: string,
+    start: number,
+    stop: number,
+    withScores?: string,
+  ): Promise<string[]> {
+    if (withScores === 'WITHSCORES') {
+      return this.client.zrevrange(key, start, stop, 'WITHSCORES');
+    }
+    return this.client.zrevrange(key, start, stop);
+  }
+
+  async zadd(key: string, score: number, member: string): Promise<number> {
+    return this.client.zadd(key, score, member);
+  }
+
+  async lpush(key: string, ...values: string[]): Promise<number> {
+    return this.client.lpush(key, ...values);
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.client.lrange(key, start, stop);
+  }
 }

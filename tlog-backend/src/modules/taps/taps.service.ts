@@ -2,6 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
 import { RoundsService } from '../rounds/rounds.service';
+import { TapResponseDto } from './dto/tap-response.dto';
+import { StatsResponseDto } from './dto/stats-response.dto';
+import { LeaderboardEntryDto } from './dto/leaderboard-entry.dto';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class TapsService {
@@ -13,57 +17,97 @@ export class TapsService {
     private roundsService: RoundsService,
   ) {}
 
-  async registerTap(roundId: string, userId: string): Promise<void> {
+  /**
+   * Process a tap with business logic for scoring
+   */
+  async processTap(roundId: string, userId: string, userRole: Role): Promise<TapResponseDto> {
     // Проверяем что раунд активный
     await this.roundsService.getActiveRound(roundId);
 
-    // Просто инкрементируем тапы в Redis
-    await this.tapCache.incrementTap(roundId, userId);
+    // Определяем является ли пользователь nikita
+    const isNikita = userRole === Role.nikita;
 
-    // Отдельно проверяем условия синхронизации
-    await this.checkAndSync(roundId, userId);
+    // Атомарно обрабатываем тап с подсчетом очков
+    const { tapCount, points } = await this.tapCache.addDelta(roundId, userId, isNikita);
+
+    // Получаем текущие счетчики игрока
+    const counters = await this.tapCache.getCounters(roundId, userId);
+
+    return {
+      success: true,
+      playerPoints: counters.points,
+      totalTaps: tapCount,
+    };
   }
 
-  private async checkAndSync(roundId: string, userId: string): Promise<void> {
-    const currentTaps = await this.tapCache.getPendingTaps(roundId, userId);
+  /**
+   * Get statistics for a round including player points and leaderboard
+   */
+  async getStats(roundId: string, userId?: string): Promise<StatsResponseDto> {
+    let playerPoints = 0;
 
-    // Получаем время последней синхронизации
-    const lastSync = await this.tapCache.getLastSync(roundId, userId);
-    const now = Date.now();
-
-    // Синхронизируем если:
-    // - накопилось >= 50 тапов ИЛИ
-    // - прошло >= 10 секунд с последней синхронизации И lastSync не равен 0 (не первый раз)
-    const shouldSync = currentTaps >= 50 || (lastSync > 0 && now - lastSync >= 10000);
-
-    if (shouldSync) {
-      await this.syncTapsToDatabase(roundId, userId);
+    // Если передан userId, получаем очки игрока
+    if (userId) {
+      const counters = await this.tapCache.getCounters(roundId, userId);
+      playerPoints = counters.points;
     }
+
+    // Получаем лидерборд из Redis (теперь содержит userIds)
+    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 10);
+
+    // Конвертируем userIds в имена пользователей для ответа
+    const leaderboard: LeaderboardEntryDto[] = [];
+    for (let i = 0; i < leaderboardData.length; i += 2) {
+      const userId = leaderboardData[i];
+      const points = parseInt(leaderboardData[i + 1]);
+
+      // Получаем имя пользователя из базы данных
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true },
+      });
+
+      if (user) {
+        leaderboard.push({
+          username: user.username,
+          points,
+        });
+      }
+    }
+
+    return {
+      playerPoints,
+      leaderboard,
+    };
   }
 
-  private async syncTapsToDatabase(roundId: string, userId: string): Promise<void> {
-    try {
-      const { tapsToSync } = await this.tapCache.getAndResetTaps(roundId, userId);
-      if (tapsToSync <= 0) return;
-      await this.prisma.tapBatch.create({
-        data: {
-          roundId,
-          userId,
-          clickCount: tapsToSync,
-          batchTimestamp: new Date(),
-        },
-      });
-      await this.tapCache.updateLastSync(roundId, userId);
+  /**
+   * Sync player stats to database - called by FlushWorker
+   */
+  async syncPlayerStats(roundId: string, userIds: string[]): Promise<void> {
+    for (const userId of userIds) {
+      const counters = await this.tapCache.getCounters(roundId, userId);
 
-      this.logger.debug(
-        `[SYNC] Successfully saved ${tapsToSync} taps to database for user ${userId} in round ${roundId}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[SYNC] Failed to sync taps for user ${userId} in round ${roundId}:`,
-        error,
-      );
-      throw error;
+      if (counters.tapCount > 0 || counters.points > 0) {
+        await this.prisma.playerRoundStats.upsert({
+          where: {
+            roundId_userId: {
+              roundId,
+              userId,
+            },
+          },
+          update: {
+            taps: counters.tapCount,
+            points: counters.points,
+          },
+          create: {
+            userId,
+            roundId,
+            taps: counters.tapCount,
+            points: counters.points,
+          },
+        });
+      }
     }
   }
 }

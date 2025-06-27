@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { GameModule } from './modules/game.module';
 import { LoggerModule } from './logger/logger.module';
@@ -9,7 +10,14 @@ import { RedisModule } from './cache/redis.module';
 import { GroupsInterceptor } from './interceptors/groups.interceptor';
 
 @Module({
-  imports: [ConfigRootModule, LoggerModule, DatabaseModule, RedisModule, GameModule],
+  imports: [
+    ScheduleModule.forRoot(),
+    ConfigRootModule,
+    LoggerModule,
+    DatabaseModule,
+    RedisModule,
+    GameModule,
+  ],
   controllers: [AppController],
   providers: [
     {
