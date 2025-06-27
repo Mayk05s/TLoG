@@ -21,6 +21,7 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   playerRoundStats PlayerRoundStats[]
   tapEvents        TapEvent[]
+  clickBatches ClickBatch[]
 }
 
 model Round {
@@ -30,6 +31,7 @@ model Round {
   createdAt DateTime @default(now()) @map("created_at")
   playerRoundStats PlayerRoundStats[]
   tapEvents        TapEvent[]
+  clickBatches ClickBatch[]
 }
 
 model PlayerRoundStats {
@@ -54,4 +56,19 @@ model TapEvent {
 
   @@unique([roundId, userId, createdAt])
   @@map("tap_events")
+}
+
+model ClickBatch {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  user           User     @relation(fields: [userId], references: [id])
+  userId         String   @map("user_id") @db.Uuid
+  round          Round    @relation(fields: [roundId], references: [id])
+  roundId        String   @map("round_id") @db.Uuid
+  clickCount     Int      @map("click_count")
+  batchTimestamp DateTime @map("batch_timestamp")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([roundId, userId])
+  @@index([roundId, batchTimestamp])
+  @@map("click_batches")
 }

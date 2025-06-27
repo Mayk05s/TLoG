@@ -1,16 +1,52 @@
 version: '3.9'
 services:
+  # ───────────────────────── PostgreSQL ─────────────────────────
   postgres:
+    container_name: tlog_postgres
     image: postgres:17
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: secret
-      POSTGRES_DB: tlog
+      POSTGRES_DB: tlog_db
     ports:
       - '5432:5432'
     volumes:
-      - db_data:/var/lib/postgresql/data
-volumes:
-  db_data:
+      - tlog_db_data:/var/lib/postgresql/data
+    networks:
+      - data-layer_default
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ───────────────────────── Redis ──────────────────
+  redis:
+    container_name: tlog-redis
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "secretpass", "--appendonly", "yes"]
+    environment:
+      - REDIS_PASSWORD=secretpass
+      - INSTANCE_ID=dev-1
+    ports:
+      - "6379:6379"
+    volumes:
+      - tlog_redis_data:/data
+    networks:
+      - data-layer_default
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "secretpass", "PING" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  tlog_db_data:
+  tlog_redis_data:
+
+networks:
+  data-layer_default:
+    external: true
+    name: data-layer_default
