@@ -1,6 +1,6 @@
 export class RedisTapKeys {
-  static userStatsKey(roundId: string, userId: string): string {
-    return `round:${roundId}:user:${userId}`;
+  static userTapsKey(roundId: string, userId: string): string {
+    return `round:${roundId}:user:${userId}:taps`;
   }
 
   static lastSyncKey(roundId: string, userId: string): string {

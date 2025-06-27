@@ -51,8 +51,8 @@ export class TapCacheService implements OnModuleInit {
   }
 
   async getPendingTaps(roundId: string, userId: string): Promise<number> {
-    const tapsKey = RedisTapKeys.userStatsKey(roundId, userId);
-    const taps = await this.redisService.hget(tapsKey, 'taps');
+    const tapsKey = RedisTapKeys.userTapsKey(roundId, userId);
+    const taps = await this.redisService.get(tapsKey);
     return parseInt(taps || '0', 10);
   }
 

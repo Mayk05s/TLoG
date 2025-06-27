@@ -18,8 +18,8 @@ export class TapsService {
     await this.roundsService.getActiveRound(roundId);
 
     // Просто инкрементируем тапы в Redis
-    await this.tapCache.incrementTap(roundId, userId);
-
+    const cashTaps = await this.tapCache.incrementTap(roundId, userId);
+    this.logger.debug(`[TAP] Current taps: ${cashTaps}`);
     // Отдельно проверяем условия синхронизации
     await this.checkAndSync(roundId, userId);
   }
@@ -28,18 +28,18 @@ export class TapsService {
     // Получаем текущее количество тапов
     const currentTaps = await this.tapCache.getPendingTaps(roundId, userId);
 
-    this.logger.debug('[CHECK] Current taps:', currentTaps);
+    this.logger.debug(`[CHECK] Current taps:${currentTaps}`);
     // Получаем время последней синхронизации
     const lastSync = await this.tapCache.getLastSync(roundId, userId);
     const now = Date.now();
-    this.logger.debug('[CHECK] lastSync:', lastSync);
+    this.logger.debug(`[CHECK] lastSync:${lastSync}`);
 
     // Синхронизируем если:
     // - накопилось >= 50 тапов ИЛИ
     // - прошло >= 10 секунд с последней синхронизацией
     const shouldSync = currentTaps >= 50 || now - lastSync >= 10000;
 
-    this.logger.debug('[CHECK] shouldSync:', shouldSync);
+    this.logger.debug(`[CHECK] shouldSync: ${shouldSync}`);
     if (shouldSync) {
       await this.syncTapsToDatabase(roundId, userId);
     }
