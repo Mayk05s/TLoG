@@ -151,6 +151,15 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
     }
   };
 
+  const calculateTapsFromPoints = (points: number): number => {
+    if (points === 0) return 0;
+
+    const bonusTaps = Math.floor(points / 10);
+    const regularPoints = points - (bonusTaps * 9);
+
+    return bonusTaps * 11 + Math.max(0, regularPoints - bonusTaps);
+  };
+
   const fetchBotInitialStats = async (bot: BotStatus): Promise<{ taps: number; points: number }> => {
     if (!bot.token) return { taps: 0, points: 0 };
 
@@ -164,9 +173,15 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       if (response.ok) {
         const roundData = await response.json();
         const userEntry = roundData.leaderboard?.find((entry: any) => entry.username === bot.username);
+        const initialPoints = userEntry?.points || 0;
+        const initialTaps = userEntry?.tapCount || 0;
+
+        const calculatedTaps = calculateTapsFromPoints(initialPoints);
+        const finalTaps = Math.max(initialTaps, calculatedTaps);
+
         return {
-          taps: userEntry?.tapCount || 0,
-          points: userEntry?.points || 0,
+          taps: finalTaps,
+          points: initialPoints,
         };
       }
     } catch (error) {
