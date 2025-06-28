@@ -63,6 +63,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.del(key);
   }
 
+  async delMultiple(...keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    return this.client.del(...keys);
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    return this.client.keys(pattern);
+  }
+
   async zincrby(key: string, increment: number, member: string): Promise<string> {
     return this.client.zincrby(key, increment, member);
   }

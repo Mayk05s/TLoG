@@ -162,4 +162,16 @@ export class TapCacheService implements OnModuleInit {
     }
     return items;
   }
+
+  /**
+   * Clear all Redis data for a round (used in tests)
+   */
+  async clearRoundData(roundId: string): Promise<void> {
+    const pattern = `round:${roundId}:*`;
+    const keys = await this.redisService.keys(pattern);
+
+    if (keys.length > 0) {
+      await this.redisService.delMultiple(...keys);
+    }
+  }
 }

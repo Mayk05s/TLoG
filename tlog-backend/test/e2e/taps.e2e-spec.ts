@@ -44,9 +44,11 @@ describe('Enhanced Taps System (e2e)', () => {
     if (roundId) {
       // Clean up database records
       await prisma.tapBatch.deleteMany({ where: { roundId } });
-      await prisma.tapEvent.deleteMany({ where: { roundId } });
       await prisma.playerRoundStats.deleteMany({ where: { roundId } });
       await prisma.round.delete({ where: { id: roundId } });
+
+      // Clean up Redis data
+      await tapCache.clearRoundData(roundId);
     }
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -94,16 +96,16 @@ describe('Enhanced Taps System (e2e)', () => {
       const response = await request(app.getHttpServer())
         .post(`/tap/${roundId}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
-        .expect(200); // Changed from 201 to 200
+        .expect(200);
 
-      // Verify TapResponseDto structure
+      // Verify new TapResponseDto structure (simplified)
       expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('playerPoints');
-      expect(response.body).toHaveProperty('totalTaps');
-      expect(typeof response.body.playerPoints).toBe('number');
-      expect(typeof response.body.totalTaps).toBe('number');
-      expect(response.body.totalTaps).toBe(1);
-      expect(response.body.playerPoints).toBe(1); // First tap = 1 point
+      expect(Object.keys(response.body)).toHaveLength(1);
+
+      // Verify Redis counter was updated correctly
+      const counters = await tapCache.getCounters(roundId, survivorTokens.userId);
+      expect(counters.tapCount).toBe(1);
+      expect(counters.points).toBe(1);
     });
 
     it('should return StatsResponseDto with correct structure', async () => {
@@ -112,6 +114,9 @@ describe('Enhanced Taps System (e2e)', () => {
         .post(`/tap/${roundId}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
         .expect(200);
+
+      // Small delay for Redis consistency
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       const response = await request(app.getHttpServer())
         .get(`/stats/${roundId}`)
@@ -144,40 +149,44 @@ describe('Enhanced Taps System (e2e)', () => {
           .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
           .expect(200);
 
-        expect(response.body.totalTaps).toBe(i);
-        expect(response.body.playerPoints).toBe(i); // 1 point per tap
+        expect(response.body.success).toBe(true);
       }
+
+      // Check points via stats API
+      const statsResponse = await request(app.getHttpServer())
+        .get(`/stats/${roundId}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+        .expect(200);
+
+      expect(statsResponse.body.playerPoints).toBe(5); // 1 point per tap
     });
 
     it('should award 10 points for every 11th tap', async () => {
       // Make 11 taps
       for (let i = 1; i <= 11; i++) {
-        const response = await request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post(`/tap/${roundId}`)
           .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
           .expect(200);
-
-        expect(response.body.totalTaps).toBe(i);
-
-        if (i === 11) {
-          // 11th tap: 10 regular taps (10 points) + 1 bonus tap (10 points) = 20 points
-          expect(response.body.playerPoints).toBe(20);
-        } else {
-          // Regular taps: 1 point each
-          expect(response.body.playerPoints).toBe(i);
-        }
       }
+
+      // Check final points via stats API
+      const statsResponse = await request(app.getHttpServer())
+        .get(`/stats/${roundId}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+        .expect(200);
+
+      // 10 regular taps (10 points) + 1 bonus tap (10 points) = 20 points
+      expect(statsResponse.body.playerPoints).toBe(20);
     });
 
     it('should award correct points for multiple 11th taps', async () => {
       // Make 22 taps (2 bonus taps at 11th and 22nd)
       for (let i = 1; i <= 22; i++) {
-        const response = await request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post(`/tap/${roundId}`)
           .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
           .expect(200);
-
-        expect(response.body.totalTaps).toBe(i);
       }
 
       // Final check: 20 regular taps (20 points) + 2 bonus taps (20 points) = 40 points
@@ -197,8 +206,7 @@ describe('Enhanced Taps System (e2e)', () => {
           .set('Authorization', `Bearer ${nikitaTokens.accessToken}`)
           .expect(200);
 
-        expect(response.body.totalTaps).toBe(i);
-        expect(response.body.playerPoints).toBe(0); // Always 0 for nikita
+        expect(response.body.success).toBe(true);
       }
 
       // Verify via stats API
@@ -207,13 +215,13 @@ describe('Enhanced Taps System (e2e)', () => {
         .set('Authorization', `Bearer ${nikitaTokens.accessToken}`)
         .expect(200);
 
-      expect(statsResponse.body.playerPoints).toBe(0);
+      expect(statsResponse.body.playerPoints).toBe(0); // Always 0 for nikita
     });
   });
 
   describe('3. Real-time Leaderboard Tests', () => {
     it('should show single player in leaderboard', async () => {
-      // Make 5 taps
+      // Make 1 tap
       await request(app.getHttpServer())
         .post(`/tap/${roundId}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
@@ -305,27 +313,61 @@ describe('Enhanced Taps System (e2e)', () => {
       expect(leaderboardData).toContain(survivorTokens.userId);
       expect(leaderboardData).toContain('3');
     });
+  });
 
-    it('should handle flush queue for background processing', async () => {
-      // Make a tap
-      await request(app.getHttpServer())
-        .post(`/tap/${roundId}`)
-        .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
-        .expect(200);
+  describe('5. Background Processing & Checkpoint Tests', () => {
+    it('should trigger checkpoint save every 50 taps', async () => {
+      // Make exactly 50 taps to trigger checkpoint
+      for (let i = 1; i <= 50; i++) {
+        await request(app.getHttpServer())
+          .post(`/tap/${roundId}`)
+          .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+          .expect(200);
+      }
 
-      // Check flush queue has items
-      const queueItems = await tapCache.getFlushQueue(roundId);
-      expect(queueItems.length).toBeGreaterThan(0);
+      // Wait for async checkpoint processing
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Verify queue item structure
-      const queueItem = JSON.parse(queueItems[0]);
-      expect(queueItem).toHaveProperty('user_id');
-      expect(queueItem).toHaveProperty('points');
-      expect(queueItem).toHaveProperty('timestamp');
+      // Verify checkpoint was saved to database
+      const tapBatches = await prisma.tapBatch.findMany({
+        where: { roundId, userId: survivorTokens.userId },
+      });
+
+      expect(tapBatches.length).toBeGreaterThan(0);
+      expect(tapBatches[0].clickCount).toBe(50);
+    });
+
+    it('should sync player stats to database on checkpoint', async () => {
+      // Make 50 taps to trigger checkpoint and sync
+      for (let i = 1; i <= 50; i++) {
+        await request(app.getHttpServer())
+          .post(`/tap/${roundId}`)
+          .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+          .expect(200);
+      }
+
+      // Wait for async processing
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Verify player stats were synced to database
+      const playerStats = await prisma.playerRoundStats.findUnique({
+        where: {
+          roundId_userId: {
+            roundId,
+            userId: survivorTokens.userId,
+          },
+        },
+      });
+
+      expect(playerStats).toBeTruthy();
+      expect(playerStats).not.toBeNull();
+      expect(playerStats!.taps).toBe(50);
+      // Correct calculation: 46 regular taps (46 points) + 4 bonus taps at 11th, 22nd, 33rd, 44th positions (4 × 10 = 40 points) = 86 points total
+      expect(playerStats!.points).toBe(86);
     });
   });
 
-  describe('5. Edge Cases & Business Logic', () => {
+  describe('6. Edge Cases & Business Logic', () => {
     it('should reject taps for inactive rounds', async () => {
       // Create inactive round (ended 1 hour ago)
       const now = new Date();
@@ -337,7 +379,7 @@ describe('Enhanced Taps System (e2e)', () => {
       await request(app.getHttpServer())
         .post(`/tap/${pastRound}`)
         .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
-        .expect(409); // Should be rejected
+        .expect(409);
     });
 
     it('should handle very high tap counts correctly', async () => {
@@ -356,6 +398,26 @@ describe('Enhanced Taps System (e2e)', () => {
 
       // 50 regular taps (50 points) + 5 bonus taps (50 points) = 100 points
       expect(response.body.playerPoints).toBe(100);
+    });
+
+    it('should handle concurrent taps without race conditions', async () => {
+      // Make concurrent taps
+      const tapPromises = Array.from({ length: 10 }, () =>
+        request(app.getHttpServer())
+          .post(`/tap/${roundId}`)
+          .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+          .expect(200),
+      );
+
+      await Promise.all(tapPromises);
+
+      // Verify final count is correct
+      const response = await request(app.getHttpServer())
+        .get(`/stats/${roundId}`)
+        .set('Authorization', `Bearer ${survivorTokens.accessToken}`)
+        .expect(200);
+
+      expect(response.body.playerPoints).toBe(10); // Should be exactly 10 points
     });
   });
 });
