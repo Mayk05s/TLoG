@@ -66,6 +66,36 @@ export class PlayerStatsService {
     return { playerPoints, totalPoints, leaderboard };
   }
 
+  async syncUserStats(roundId: string, userId: string): Promise<void> {
+    const { tapCount, points } = await this.tapCache.getCounters(roundId, userId);
+
+    if (tapCount > 0 || points > 0) {
+      await this.prisma.playerRoundStats.upsert({
+        where: { roundId_userId: { roundId, userId } },
+        update: { taps: tapCount, points },
+        create: { userId, roundId, taps: tapCount, points },
+      });
+    }
+  }
+
+  async syncRoundStats(roundId: string): Promise<void> {
+    const allLeaderboardData = await this.tapCache.getLeaderboard(roundId, -1);
+
+    for (let i = 0; i < allLeaderboardData.length; i += 2) {
+      const userId = allLeaderboardData[i];
+      const points = parseInt(allLeaderboardData[i + 1]);
+      const { tapCount } = await this.tapCache.getCounters(roundId, userId);
+
+      if (tapCount > 0 || points > 0) {
+        await this.prisma.playerRoundStats.upsert({
+          where: { roundId_userId: { roundId, userId } },
+          update: { taps: tapCount, points },
+          create: { userId, roundId, taps: tapCount, points },
+        });
+      }
+    }
+  }
+
   private async buildLeaderboardWithUsernames(
     topEntries: { userId: string; points: number }[],
   ): Promise<LeaderboardEntryDto[]> {
@@ -77,67 +107,20 @@ export class PlayerStatsService {
 
     const userMap = new Map(users.map(user => [user.id, user.username]));
 
-    return topEntries
+    const leaderboard: LeaderboardEntryDto[] = topEntries
       .map(entry => {
         const username = userMap.get(entry.userId);
         return username ? new LeaderboardEntryDto(username, entry.points) : null;
       })
       .filter(entry => entry !== null);
-  }
-
-  async syncUserStats(roundId: string, userId: string): Promise<void> {
-    const counters = await this.tapCache.getCounters(roundId, userId);
-    if (counters.tapCount > 0 || counters.points > 0) {
-      await this.prisma.playerRoundStats.upsert({
-        where: {
-          roundId_userId: { roundId, userId },
-        },
-        update: {
-          taps: counters.tapCount,
-          points: counters.points,
-        },
-        create: {
-          userId,
-          roundId,
-          taps: counters.tapCount,
-          points: counters.points,
-        },
-      });
-    }
-  }
-
-  async syncRoundStats(roundId: string): Promise<void> {
-    const userIds = await this.getUserIdsFromLeaderboard(roundId);
-
-    for (const userId of userIds) {
-      await this.syncUserStats(roundId, userId);
-    }
-  }
-
-  private async getUserIdsFromLeaderboard(roundId: string): Promise<string[]> {
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, -1);
-    const userIds: string[] = [];
-
-    for (let i = 0; i < leaderboardData.length; i += 2) {
-      userIds.push(leaderboardData[i]);
-    }
-
-    return userIds;
-  }
-
-  private async buildLeaderboardFromCache(
-    roundId: string,
-    limit: number,
-  ): Promise<{ userId: string; points: number }[]> {
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, limit);
-    const leaderboard: { userId: string; points: number }[] = [];
-
-    for (let i = 0; i < leaderboardData.length; i += 2) {
-      const userId = leaderboardData[i];
-      const points = parseInt(leaderboardData[i + 1]);
-      leaderboard.push({ userId, points });
-    }
 
     return leaderboard;
   }
+
+  // TODO: Implement comprehensive sync strategy
+  // Current approach: cache-first until round ends, then sync to DB
+  // Future considerations:
+  // - Periodic background sync for data safety
+  // - Recovery mechanisms for Redis failures
+  // - Conflict resolution for concurrent updates
 }
