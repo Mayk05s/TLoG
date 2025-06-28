@@ -139,7 +139,7 @@ export function RoundPage() {
                   <Chip
                     label={roundWithStatus.status.charAt(0).toUpperCase() + roundWithStatus.status.slice(1)}
                     color={roundWithStatus.status === 'active' ? 'success' :
-                           roundWithStatus.status === 'cooldown' ? 'warning' : 'default'}
+                      roundWithStatus.status === 'cooldown' ? 'warning' : 'default'}
                     size="medium"
                   />
                   {roundWithStatus.timeLeft !== undefined && roundWithStatus.timeLeft > 0 && (
@@ -280,11 +280,11 @@ export function RoundPage() {
             </Card>
 
 
-              <BotManager
-                roundId={id!}
-                roundStatus={roundWithStatus.status}
-                onStatsUpdate={refetchStats}
-              />
+            <BotManager
+              roundId={id!}
+              roundStatus={roundWithStatus.status}
+              onStatsUpdate={refetchStats}
+            />
           </Box>
         </Box>
       </Container>

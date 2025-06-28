@@ -16,6 +16,7 @@ import {
   ListItemText,
   MenuItem,
   Select,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { Close, Pause, PlayArrow } from '@mui/icons-material';
@@ -29,9 +30,15 @@ interface BotStatus {
   status: 'idle' | 'authenticating' | 'registering' | 'active' | 'paused' | 'error';
   token?: string;
   tapsCount: number;
+  pointsCount: number;
   lastTap?: number;
   error?: string;
   speedPreset: SpeedPreset;
+}
+
+interface LeaderboardEntry {
+  username: string;
+  points: number;
 }
 
 interface BotManagerProps {
@@ -42,17 +49,25 @@ interface BotManagerProps {
 
 export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerProps) {
   const [activeBots, setActiveBots] = useState<BotStatus[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [isExpanded, setIsExpanded] = useState(true);
   const [isAddingBot, setIsAddingBot] = useState(false);
   const [selectedSpeed, setSelectedSpeed] = useState<SpeedPreset>('normal');
   const intervalsRef = useRef<Map<string, number>>(new Map());
+  const leaderboardIntervalRef = useRef<number | undefined>(undefined);
 
   const stopAllBots = useCallback(() => {
     intervalsRef.current.forEach((interval) => {
       clearInterval(interval);
     });
     intervalsRef.current.clear();
+
+    if (leaderboardIntervalRef.current) {
+      clearInterval(leaderboardIntervalRef.current);
+    }
+
     setActiveBots([]);
+    setLeaderboardData([]);
   }, []);
 
   useEffect(() => {
@@ -114,12 +129,13 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       if (!response.ok) {
         throw new Error(`Tap failed: ${response.status}`);
       }
-      
+
       setActiveBots(prev => prev.map(existingBot =>
         existingBot.username === bot.username
           ? {
             ...existingBot,
             tapsCount: existingBot.tapsCount + 1,
+            pointsCount: existingBot.pointsCount + ((existingBot.tapsCount + 1) % 11 === 0 ? 10 : 1),
             lastTap: Date.now(),
           }
           : existingBot,
@@ -133,6 +149,31 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
+  };
+
+  const fetchBotInitialStats = async (bot: BotStatus): Promise<{ taps: number; points: number }> => {
+    if (!bot.token) return { taps: 0, points: 0 };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/rounds/${roundId}`, {
+        headers: {
+          'Authorization': `Bearer ${bot.token}`,
+        },
+      });
+
+      if (response.ok) {
+        const roundData = await response.json();
+        const userEntry = roundData.leaderboard?.find((entry: any) => entry.username === bot.username);
+        return {
+          taps: userEntry?.tapCount || 0,
+          points: userEntry?.points || 0,
+        };
+      }
+    } catch (error) {
+      console.error(`Failed to fetch initial stats for ${bot.username}:`, error);
+    }
+
+    return { taps: 0, points: 0 };
   };
 
   const getRandomInterval = (speedPreset: SpeedPreset) => {
@@ -204,6 +245,7 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       username: botConfig.username,
       status: 'authenticating',
       tapsCount: 0,
+      pointsCount: 0,
       speedPreset: selectedSpeed,
     };
 
@@ -219,14 +261,20 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       }
 
       if (token) {
+        const botWithToken = { ...newBot, token };
+
+        // Получаем начальную статистику бота
+        const initialStats = await fetchBotInitialStats(botWithToken);
+
         updateBotStatus(botConfig.username, {
           status: 'idle',
           token,
+          tapsCount: initialStats.taps,
+          pointsCount: initialStats.points,
           error: undefined,
         });
 
-        const botWithToken = { ...newBot, token };
-        startBot(botWithToken);
+        startBot({ ...botWithToken, tapsCount: initialStats.taps, pointsCount: initialStats.points });
       } else {
         updateBotStatus(botConfig.username, {
           status: 'error',
@@ -246,11 +294,17 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   const getShortBotName = (username: string) => {
     return username.replace('bot_', '').replace('_2', '²');
   };
+  const getDiffColor = (diff) => {
+    if (diff < 0) return 'error';
+    if (Math.abs(diff) <= 2) return 'success';
+    return 'warning';
+  };
 
-  const getStatusColor = (status: BotStatus['status']) => {
+  const getStatusColor = (status: BotStatus['status'], diff: number) => {
     switch (status) {
-      case 'active':
-        return 'success';
+      case 'active': {
+        return getDiffColor(diff);
+      }
       case 'paused':
         return 'warning';
       case 'authenticating':
@@ -263,8 +317,13 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
     }
   };
 
-  const getStatusText = (bot: BotStatus) => {
-    switch (bot.status) {
+  const getLeaderboardPoints = (username: string): number => {
+    const entry = leaderboardData.find(entry => entry.username === username);
+    return entry?.points || 0;
+  };
+
+  const getStatusText = (status: BotStatus['status'], diff: number) => {
+    switch (status) {
       case 'idle':
         return 'Ready';
       case 'authenticating':
@@ -272,11 +331,11 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       case 'registering':
         return 'Signup...';
       case 'active':
-        return `${bot.tapsCount}`;
+        return `D:${diff}`;
       case 'paused':
-        return 'Paused';
+        return '⏸️';
       case 'error':
-        return 'Error';
+        return '���';
       default:
         return 'Unknown';
     }
@@ -285,6 +344,47 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   const activeBotsCount = activeBots.filter(bot => bot.status === 'active').length;
   const totalTaps = activeBots.reduce((sum, bot) => sum + bot.tapsCount, 0);
   const canAddMore = activeBots.length < BOT_BEHAVIOR.MAX_BOTS && getNextAvailableBot();
+
+  const calculateBotPoints = (tapsCount: number): number => {
+    const bonusTaps = Math.floor(tapsCount / 11);
+    return tapsCount + (bonusTaps * 9);
+  };
+
+  const fetchLeaderboard = useCallback(async () => {
+    const botWithToken = activeBots.find(bot => bot.token);
+    if (!botWithToken?.token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/rounds/${roundId}`, {
+        headers: {
+          'Authorization': `Bearer ${botWithToken.token}`,
+        },
+      });
+      if (response.ok) {
+        const roundData = await response.json();
+        setLeaderboardData(roundData.leaderboard || []);
+        onStatsUpdate?.();
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+    }
+  }, [roundId, onStatsUpdate, activeBots]);
+
+  useEffect(() => {
+    if (roundStatus === 'active' && activeBots.length > 0) {
+      fetchLeaderboard();
+
+      leaderboardIntervalRef.current = setInterval(fetchLeaderboard, 2000);
+    } else if (leaderboardIntervalRef.current) {
+      clearInterval(leaderboardIntervalRef.current);
+    }
+
+    return () => {
+      if (leaderboardIntervalRef.current) {
+        clearInterval(leaderboardIntervalRef.current);
+      }
+    };
+  }, [roundStatus, activeBots.length, fetchLeaderboard]);
 
   if (roundStatus === 'completed') {
     return null;
@@ -354,59 +454,120 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
 
             <Collapse in={isExpanded}>
               <List dense>
-                {activeBots.map((bot) => (
-                  <ListItem
-                    key={bot.username}
-                    sx={{
-                      bgcolor: bot.status === 'active' ? 'success.light' : 'transparent',
-                      borderRadius: 1,
-                      mb: 0.5,
-                      opacity: bot.status === 'error' ? 0.7 : 1,
-                    }}
-                  >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {getShortBotName(bot.username)}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Speed: {BOT_SPEED_PRESETS[bot.speedPreset].name}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip
-                              label={getStatusText(bot)}
-                              color={getStatusColor(bot.status)}
-                              size="small"
-                            />
+                {activeBots.map((bot) => {
+                  const leaderboardPoints = getLeaderboardPoints(bot.username);
+                  const pointsMatch = bot.pointsCount === leaderboardPoints;
 
-                            {/* Кнопка паузы/воспроизведения */}
-                            {(bot.status === 'active' || bot.status === 'paused') && (
+                  return (
+                    <ListItem
+                      key={bot.username}
+                      sx={{
+                        bgcolor: bot.status === 'active' ? 'rgba(76, 175, 80, 0.12)' : 'transparent',
+                        borderRadius: 1,
+                        mb: 0.5,
+                        opacity: bot.status === 'error' ? 0.7 : 1,
+                        border: bot.status === 'active' ? '1px solid rgba(76, 175, 80, 0.3)' : 'none',
+                      }}
+                    >
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {getShortBotName(bot.username)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Speed: {BOT_SPEED_PRESETS[bot.speedPreset].name}
+                              </Typography>
+
+                              {/* Компактная статистика с diff */}
+                              {(bot.status === 'active' || bot.status === 'paused') && bot.tapsCount > 0 && (
+                                <Box
+                                  sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Tooltip title={`Bot calculated points: ${bot.pointsCount}`} arrow>
+                                    <Chip
+                                      label={`B:${bot.pointsCount}`}
+                                      size="small"
+                                      variant="outlined"
+                                      color="info"
+                                      sx={{
+                                        fontSize: '0.6rem',
+                                        height: '18px',
+                                        '& .MuiChip-label': { px: 0.4 },
+                                      }}
+                                    />
+                                  </Tooltip>
+
+                                  <Tooltip
+                                    title={`Leaderboard points: ${leaderboardPoints}`}
+                                    arrow
+                                  >
+                                    <Chip
+                                      label={`L:${leaderboardPoints}`}
+                                      size="small"
+                                      variant="outlined"
+                                      color={pointsMatch ? 'success' : 'warning'}
+                                      sx={{
+                                        fontSize: '0.6rem',
+                                        height: '18px',
+                                        '& .MuiChip-label': { px: 0.4 },
+                                      }}
+                                    />
+                                  </Tooltip>
+                                  <Tooltip
+                                    title={`Taps: ${bot.tapsCount}`}
+                                    arrow
+                                  >
+                                    <Chip
+                                      label={`T:${bot.tapsCount}`}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        fontSize: '0.6rem',
+                                        height: '18px',
+                                        '& .MuiChip-label': { px: 0.4 },
+                                      }}
+                                    />
+                                  </Tooltip>
+                                </Box>
+                              )}
+                            </Box>
+
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+
+                              <Chip
+                                label={getStatusText(bot.status, bot.pointsCount - leaderboardPoints)}
+                                color={getStatusColor(bot.status, bot.pointsCount - leaderboardPoints)}
+                                size="small"
+                                sx={{ fontSize: '0.7rem' }}
+                              />
+                              {/* Кнопка паузы/воспроизведения */}
+                              {(bot.status === 'active' || bot.status === 'paused') && (
+                                <IconButton
+                                  size="small"
+                                  onClick={() => bot.status === 'active' ? pauseBot(bot.username) : resumeBot(bot.username)}
+                                  color={bot.status === 'active' ? 'warning' : 'success'}
+                                >
+                                  {bot.status === 'active' ? <Pause fontSize="small" /> :
+                                    <PlayArrow fontSize="small" />}
+                                </IconButton>
+                              )}
+
+                              {/* Кнопка удаления (крестик) */}
                               <IconButton
                                 size="small"
-                                onClick={() => bot.status === 'active' ? pauseBot(bot.username) : resumeBot(bot.username)}
-                                color={bot.status === 'active' ? 'warning' : 'success'}
+                                onClick={() => stopBot(bot.username)}
+                                color="error"
                               >
-                                {bot.status === 'active' ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />}
+                                <Close fontSize="small" />
                               </IconButton>
-                            )}
-
-                            {/* Кнопка удаления (крестик) */}
-                            <IconButton
-                              size="small"
-                              onClick={() => stopBot(bot.username)}
-                              color="error"
-                            >
-                              <Close fontSize="small" />
-                            </IconButton>
+                            </Box>
                           </Box>
-                        </Box>
-                      }
-                    />
-                  </ListItem>
-                ))}
+                        }
+                      />
+                    </ListItem>
+                  );
+                })}
               </List>
             </Collapse>
           </>
