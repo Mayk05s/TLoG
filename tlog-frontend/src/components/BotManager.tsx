@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -8,12 +7,10 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Container,
   FormControl,
   IconButton,
   InputLabel,
-  List,
-  ListItem,
-  ListItemText,
   MenuItem,
   Select,
   Tooltip,
@@ -406,169 +403,124 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   }
 
   return (
-    <Card sx={{ mt: 2 }}>
-      <CardContent>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            🤖 Bot Manager
-          </Typography>
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        bgcolor: 'background.paper',
+        borderTop: 1,
+        borderColor: 'divider',
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+      }}
+    >
+      <Container maxWidth="lg">
+        <Card elevation={0} sx={{ bgcolor: 'transparent' }}>
+          <CardContent sx={{ py: 2 }}>
+            {/* Основная строка с управлением */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              {/* Заголовок */}
+              <Typography variant="h6" sx={{ minWidth: 'auto', whiteSpace: 'nowrap' }}>
+                🤖 Bot Manager
+              </Typography>
 
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
-            <FormControl size="small" sx={{ minWidth: 100 }}>
-              <InputLabel>Speed</InputLabel>
-              <Select
-                value={selectedSpeed}
-                label="Speed"
-                onChange={(e) => setSelectedSpeed(e.target.value as SpeedPreset)}
-                disabled={roundStatus !== 'active'}
+              {/* Селектор скорости */}
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <InputLabel>Speed</InputLabel>
+                <Select
+                  value={selectedSpeed}
+                  label="Speed"
+                  onChange={(e) => setSelectedSpeed(e.target.value as SpeedPreset)}
+                  disabled={roundStatus !== 'active'}
+                >
+                  {Object.entries(BOT_SPEED_PRESETS).map(([key, preset]) => (
+                    <MenuItem key={key} value={key}>
+                      {preset.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {/* Кнопка добавления */}
+              <Button
+                variant="contained"
+                size="small"
+                onClick={addBot}
+                disabled={isAddingBot || roundStatus !== 'active' || !canAddMore}
+                sx={{ minWidth: '100px' }}
               >
-                {Object.entries(BOT_SPEED_PRESETS).map(([key, preset]) => (
-                  <MenuItem key={key} value={key}>
-                    {preset.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+                {isAddingBot ? (
+                  <CircularProgress size={16} color="inherit" />
+                ) : (
+                  'Add Bot'
+                )}
+              </Button>
 
-            <Button
-              variant="contained"
-              size="small"
-              onClick={addBot}
-              disabled={isAddingBot || roundStatus !== 'active' || !canAddMore}
-              sx={{ minWidth: '100px' }}
-            >
-              {isAddingBot ? (
-                <CircularProgress size={16} color="inherit" />
-              ) : (
-                'Add Bot'
+              {/* Статистика */}
+              <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                {activeBots.length}/{BOT_BEHAVIOR.MAX_BOTS} bots • {activeBotsCount} active
+              </Typography>
+
+              {/* Общая статистика активных ботов */}
+              {activeBotsCount > 0 && (
+                <Typography variant="body2" color="info.main" sx={{ whiteSpace: 'nowrap' }}>
+                  • {totalTaps} total taps
+                </Typography>
               )}
-            </Button>
-          </Box>
 
-          <Typography variant="body2" color="text.secondary">
-            {activeBots.length}/{BOT_BEHAVIOR.MAX_BOTS} bots • {activeBotsCount} active
-          </Typography>
-        </Box>
+              {/* Кнопка показать/скрыть детали */}
+              {activeBots.length > 0 && (
+                <Button
+                  variant="text"
+                  size="small"
+                  onClick={() => setIsExpanded(!isExpanded)}
+                  sx={{ ml: 'auto', minWidth: 'auto' }}
+                >
+                  {isExpanded ? 'Hide' : 'Show'} Details
+                </Button>
+              )}
+            </Box>
 
-        {activeBotsCount > 0 && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            {activeBotsCount} bots active • {totalTaps} total taps
-          </Alert>
-        )}
+            {/* Активные боты - горизонтальные карточки */}
+            {activeBots.length > 0 && (
+              <Collapse in={isExpanded}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
+                  {activeBots.map((bot) => {
+                    const leaderboardPoints = getLeaderboardPoints(bot.username);
+                    const pointsMatch = bot.pointsCount === leaderboardPoints;
 
-        {activeBots.length > 0 && (
-          <>
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => setIsExpanded(!isExpanded)}
-              sx={{ mb: 1 }}
-            >
-              {isExpanded ? 'Hide Details' : 'Show Details'}
-            </Button>
+                    return (
+                      <Card
+                        key={bot.username}
+                        sx={{
+                          minWidth: 200,
+                          maxWidth: 250,
+                          bgcolor: bot.status === 'active' ? 'rgba(76, 175, 80, 0.12)' : 'background.default',
+                          border: bot.status === 'active' ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid',
+                          borderColor: bot.status === 'active' ? 'rgba(76, 175, 80, 0.3)' : 'divider',
+                          opacity: bot.status === 'error' ? 0.7 : 1,
+                        }}
+                      >
+                        <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                          {/* Заголовок бота */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {getShortBotName(bot.username)}
+                            </Typography>
 
-            <Collapse in={isExpanded}>
-              <List dense>
-                {activeBots.map((bot) => {
-                  const leaderboardPoints = getLeaderboardPoints(bot.username);
-                  const pointsMatch = bot.pointsCount === leaderboardPoints;
-
-                  return (
-                    <ListItem
-                      key={bot.username}
-                      sx={{
-                        bgcolor: bot.status === 'active' ? 'rgba(76, 175, 80, 0.12)' : 'transparent',
-                        borderRadius: 1,
-                        mb: 0.5,
-                        opacity: bot.status === 'error' ? 0.7 : 1,
-                        border: bot.status === 'active' ? '1px solid rgba(76, 175, 80, 0.3)' : 'none',
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {getShortBotName(bot.username)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Speed: {BOT_SPEED_PRESETS[bot.speedPreset].name}
-                              </Typography>
-
-                              {/* Компактная статистика с diff */}
-                              {(bot.status === 'active' || bot.status === 'paused') && bot.tapsCount > 0 && (
-                                <Box
-                                  sx={{ mt: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                  <Tooltip title={`Bot calculated points: ${bot.pointsCount}`} arrow>
-                                    <Chip
-                                      label={`B:${bot.pointsCount}`}
-                                      size="small"
-                                      variant="outlined"
-                                      color="info"
-                                      sx={{
-                                        fontSize: '0.6rem',
-                                        height: '18px',
-                                        '& .MuiChip-label': { px: 0.4 },
-                                      }}
-                                    />
-                                  </Tooltip>
-
-                                  <Tooltip
-                                    title={`Leaderboard points: ${leaderboardPoints}`}
-                                    arrow
-                                  >
-                                    <Chip
-                                      label={`L:${leaderboardPoints}`}
-                                      size="small"
-                                      variant="outlined"
-                                      color={pointsMatch ? 'success' : 'warning'}
-                                      sx={{
-                                        fontSize: '0.6rem',
-                                        height: '18px',
-                                        '& .MuiChip-label': { px: 0.4 },
-                                      }}
-                                    />
-                                  </Tooltip>
-                                  <Tooltip
-                                    title={`Taps: ${bot.tapsCount}`}
-                                    arrow
-                                  >
-                                    <Chip
-                                      label={`T:${bot.tapsCount}`}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{
-                                        fontSize: '0.6rem',
-                                        height: '18px',
-                                        '& .MuiChip-label': { px: 0.4 },
-                                      }}
-                                    />
-                                  </Tooltip>
-                                </Box>
-                              )}
-                            </Box>
-
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-
-                              <Chip
-                                label={getStatusText(bot.status, bot.pointsCount - leaderboardPoints)}
-                                color={getStatusColor(bot.status, bot.pointsCount - leaderboardPoints)}
-                                size="small"
-                                sx={{ fontSize: '0.7rem' }}
-                              />
-                              {/* Кнопка паузы/воспроизведения */}
+                            {/* Кнопки управления */}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                               {(bot.status === 'active' || bot.status === 'paused') && (
                                 <IconButton
                                   size="small"
                                   onClick={() => bot.status === 'active' ? pauseBot(bot.username) : resumeBot(bot.username)}
                                   color={bot.status === 'active' ? 'warning' : 'success'}
                                 >
-                                  {bot.status === 'active' ? <Pause fontSize="small" /> :
-                                    <PlayArrow fontSize="small" />}
+                                  {bot.status === 'active' ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />}
                                 </IconButton>
                               )}
-
-                              {/* Кнопка удаления (крестик) */}
                               <IconButton
                                 size="small"
                                 onClick={() => stopBot(bot.username)}
@@ -578,16 +530,75 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
                               </IconButton>
                             </Box>
                           </Box>
-                        }
-                      />
-                    </ListItem>
-                  );
-                })}
-              </List>
-            </Collapse>
-          </>
-        )}
-      </CardContent>
-    </Card>
+
+                          {/* Статус и скорость */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {BOT_SPEED_PRESETS[bot.speedPreset].name}
+                            </Typography>
+                            <Chip
+                              label={getStatusText(bot.status, bot.pointsCount - leaderboardPoints)}
+                              color={getStatusColor(bot.status, bot.pointsCount - leaderboardPoints)}
+                              size="small"
+                              sx={{ fontSize: '0.7rem', height: '20px' }}
+                            />
+                          </Box>
+
+                          {/* Статистика в одну строку */}
+                          {(bot.status === 'active' || bot.status === 'paused') && bot.tapsCount > 0 && (
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              <Tooltip title={`Bot calculated points: ${bot.pointsCount}`} arrow>
+                                <Chip
+                                  label={`B:${bot.pointsCount}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color="info"
+                                  sx={{
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 },
+                                  }}
+                                />
+                              </Tooltip>
+
+                              <Tooltip title={`Leaderboard points: ${leaderboardPoints}`} arrow>
+                                <Chip
+                                  label={`L:${leaderboardPoints}`}
+                                  size="small"
+                                  variant="outlined"
+                                  color={pointsMatch ? 'success' : 'warning'}
+                                  sx={{
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 },
+                                  }}
+                                />
+                              </Tooltip>
+
+                              <Tooltip title={`Taps: ${bot.tapsCount}`} arrow>
+                                <Chip
+                                  label={`T:${bot.tapsCount}`}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    fontSize: '0.6rem',
+                                    height: '18px',
+                                    '& .MuiChip-label': { px: 0.4 },
+                                  }}
+                                />
+                              </Tooltip>
+                            </Box>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </Box>
+              </Collapse>
+            )}
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
   );
 }

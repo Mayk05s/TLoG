@@ -66,7 +66,7 @@ export function RoundPage() {
         <AppHeader
           title="Game Rounds"
           username={user.username}
-          role={user.role}
+          role={user.role}ж
           onLogout={handleLogout}
         />
         <Container maxWidth="lg" sx={{ mt: 4 }}>
@@ -113,7 +113,7 @@ export function RoundPage() {
         onLogout={handleLogout}
       />
 
-      <Container maxWidth="lg" sx={{ py: 2 }}>
+      <Container maxWidth="lg" sx={{ py: 2, pb: 20 }}>
         {/* Заголовок раунда на всю ширину с кнопкой возврата */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
@@ -217,7 +217,7 @@ export function RoundPage() {
             </Card>
           </Box>
 
-          {/* Лидерборд справа от центрального контента */}
+          {/* Лидерборд справа от центрального кон��ента */}
           <Box sx={{
             width: { xs: '100%', lg: '300px' },
             flexShrink: 0
@@ -278,15 +278,15 @@ export function RoundPage() {
                 )}
               </CardContent>
             </Card>
-
-
-            <BotManager
-              roundId={id!}
-              roundStatus={roundWithStatus.status}
-              onStatsUpdate={refetchStats}
-            />
           </Box>
         </Box>
+
+        {/* BotManager теперь фиксирован внизу экрана */}
+        <BotManager
+          roundId={id!}
+          roundStatus={roundWithStatus.status}
+          onStatsUpdate={refetchStats}
+        />
       </Container>
     </>
   );
