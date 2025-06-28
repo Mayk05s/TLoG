@@ -1,171 +1,157 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { roundsApi } from '../api/client';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
-import { CheckCircle, Clock, Play, Plus } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Container,
+  Grid,
+  Paper,
+  Typography,
+} from '@mui/material';
+import { Add, Refresh } from '@mui/icons-material';
+import { type Round, roundsApi } from '../api';
+import { calculateRoundStatus } from '../lib/utils';
+import { AppHeader } from '../components/AppHeader';
+import { RoundStatusChip } from '../components/RoundStatusChip';
 
 export function RoundsPage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const queryClient = useQueryClient();
-  const [isCreating, setIsCreating] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
-  const { data: rounds, isLoading, error } = useQuery({
+  const { data: rounds, isLoading, error, refetch } = useQuery<Round[], Error>({
     queryKey: ['rounds'],
     queryFn: roundsApi.getRounds,
+    refetchInterval: 5000,
   });
+
+  // Handle authentication errors
+  useEffect(() => {
+    if (error && error.message.includes('401')) {
+      localStorage.clear();
+      navigate('/login');
+    }
+  }, [error, navigate]);
 
   const createRoundMutation = useMutation({
-    mutationFn: () => {
-      const now = new Date();
-      const startsAt = new Date(now.getTime() + 30000); // Start in 30 seconds
-      return roundsApi.createRound({
-        starts_at: startsAt.toISOString(),
-        duration: 60, // 60 seconds duration
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rounds'] });
-      setIsCreating(false);
-    },
-    onError: (error) => {
-      console.error('Failed to create round:', error);
-      setIsCreating(false);
-    },
+    mutationFn: roundsApi.createRound,
+    onSuccess: () => refetch(),
   });
 
-  const handleCreateRound = () => {
-    setIsCreating(true);
-    createRoundMutation.mutate();
-  };
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'cooldown':
-        return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'active':
-        return <Play className="w-4 h-4 text-green-500" />;
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-gray-500" />;
-      default:
-        return null;
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full" />
-            ))}
-          </div>
-        </div>
-      </div>
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+        <CircularProgress size={60} />
+      </Container>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <p className="text-red-600 text-center">Failed to load rounds</p>
-            <Button onClick={() => window.location.reload()} className="w-full mt-4">
-              Retry
+      <Container sx={{ mt: 4 }}>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => refetch()}>
+              <Refresh />
             </Button>
-          </CardContent>
-        </Card>
-      </div>
+          }
+        >
+          Failed to connect to backend: {error.message}
+        </Alert>
+      </Container>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Game Rounds
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Welcome, {user?.username}!
-            </p>
-          </div>
-          <div className="flex gap-2">
-            {user?.role === 'admin' && (
-              <Button
-                onClick={handleCreateRound}
-                disabled={isCreating}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {isCreating ? 'Creating...' : 'Create Round'}
-              </Button>
-            )}
-            <Button
-              onClick={logout}
-              variant="outline"
-            >
-              Logout
-            </Button>
-          </div>
-        </div>
+    <>
+      <AppHeader
+        title="Game Rounds"
+        username={user.username}
+        role={user.role}
+        onLogout={handleLogout}
+      />
 
-        <div className="space-y-4">
-          {rounds?.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-gray-500 dark:text-gray-400">
-                  No rounds available yet.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            rounds?.map((round) => (
-              <Card
-                key={round.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/round/${round.id}`)}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(round.status)}
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          Round {round.id.slice(0, 8)}
-                        </h3>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm">
-                          Status: <span className="capitalize">{round.status}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right text-sm text-gray-600 dark:text-gray-400">
-                      <div>Created: {formatDate(round.created_at)}</div>
-                      <div>Starts: {formatDate(round.starts_at)}</div>
-                      <div>Ends: {formatDate(round.endsAt)}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+      <Container sx={{ mt: 4, mb: 8 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h5">
+            Available Rounds ({rounds?.length || 0})
+          </Typography>
+          {user.role === 'admin' && (
+            <Button
+              variant="contained"
+              startIcon={createRoundMutation.isPending ? <CircularProgress size={20} /> : <Add />}
+              onClick={() => createRoundMutation.mutate()}
+              disabled={createRoundMutation.isPending}
+            >
+              {createRoundMutation.isPending ? 'Creating...' : 'Create Round'}
+            </Button>
           )}
-        </div>
-      </div>
-    </div>
+        </Box>
+
+        {rounds?.length === 0 ? (
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <Typography variant="h6" color="text.secondary">
+              No rounds available yet.
+            </Typography>
+          </Paper>
+        ) : (
+          <Grid container spacing={2}>
+            {rounds?.map((round) => {
+              const roundWithStatus = calculateRoundStatus(round, currentTime);
+              return (
+                <Grid item xs={12} key={round.id}>
+                  <Card
+                    sx={{ cursor: 'pointer', '&:hover': { elevation: 4 } }}
+                    onClick={() => navigate(`/rounds/${round.id}`)}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="h6" gutterBottom>
+                            Round {round.id.slice(0, 8)}
+                          </Typography>
+                          <Box sx={{ mb: 1 }}>
+                            <RoundStatusChip roundWithStatus={roundWithStatus} />
+                          </Box>
+                          <Typography variant="body2" color="text.secondary">
+                            Created: {new Date(round.createdAt).toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Starts: {new Date(round.startsAt).toLocaleString()}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Ends: {new Date(round.endsAt).toLocaleString()}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ fontSize: '2rem' }}>
+                          {roundWithStatus.status === 'active' ? '🟢' :
+                           roundWithStatus.status === 'cooldown' ? '🟡' : '⚪'}
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+        )}
+      </Container>
+    </>
   );
 }

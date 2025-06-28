@@ -1,289 +1,217 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../hooks/useAuth';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { roundsApi, tapsApi } from '../api/client';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
-import { ArrowLeft, Award, Crown, Medal, Zap } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Container,
+  Fab,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+} from '@mui/material';
+import { TouchApp } from '@mui/icons-material';
+import { type RoundDetailsResponse, roundsApi, type StatsResponse, tapsApi } from '../api';
+import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
+import { AppHeader } from '../components/AppHeader';
 
 export function RoundPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [timeLeft, setTimeLeft] = useState<number | null>(null);
-  const [playerStats, setPlayerStats] = useState({ points: 0, taps: 0 });
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
-  const { data: round, isLoading: roundLoading } = useQuery({
+  const { data: round, isLoading: roundLoading, error: roundError } = useQuery<RoundDetailsResponse, Error>({
     queryKey: ['round', id],
     queryFn: () => roundsApi.getRound(id!),
+    refetchInterval: 2000,
     enabled: !!id,
   });
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['rounds', id],
-    queryFn: () => tapsApi.getStats(id!),
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery<StatsResponse, Error>({
+    queryKey: ['stats', id],
+    queryFn: () => roundsApi.getStats(id!),
+    refetchInterval: 2000,
     enabled: !!id,
-    refetchInterval: round?.status === 'active' ? 2000 : 5000, // Более частое обновление для активных раундов
   });
 
   const tapMutation = useMutation({
-    mutationFn: () => tapsApi.tap(id!),
-    onSuccess: () => {
-      // Обновляем статистику сразу после тапа
-      queryClient.invalidateQueries({ queryKey: ['rounds', id] });
-    },
+    mutationFn: () => tapsApi.submitTap(id!),
+    onSuccess: () => refetchStats(),
   });
 
-  // WebSocket для real-time обновлений (временно отключен)
-  const { isConnected, isEnabled } = useWebSocket(id!, {
-    onMessage: (message) => {
-      // Обновляем локальную статистику от WebSocket
-      setPlayerStats(prev => ({
-        points: message.points,
-        taps: prev.taps + 1,
-      }));
-      // Обновляем кеш React Query
-      queryClient.invalidateQueries({ queryKey: ['rounds', id] });
-    },
-  });
-
-  // Timer countdown
   useEffect(() => {
-    if (!round) return;
-
-    const updateTimer = () => {
-      const now = Date.now();
-      const endsAt = new Date(round.endsAt).getTime();
-      const remaining = Math.max(0, Math.floor((endsAt - now) / 1000));
-      setTimeLeft(remaining);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, [round]);
+  }, []);
 
-  // Обновляем статистику игрока из API
-  useEffect(() => {
-    if (stats) {
-      setPlayerStats(prev => ({
-        ...prev,
-        points: stats.playerPoints,
-      }));
-    }
-  }, [stats]);
+  const isLoading = roundLoading || statsLoading;
+  const error = roundError || statsError;
 
-  const handleTap = () => {
-    if (round?.status === 'active' && timeLeft && timeLeft > 0) {
-      // Оптимистичное обновление - увеличиваем счетчик тапов сразу
-      setPlayerStats(prev => ({
-        ...prev,
-        taps: prev.taps + 1,
-      }));
-      tapMutation.mutate();
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getRankIcon = (index: number) => {
-    switch (index) {
-      case 0:
-        return <Crown className="w-5 h-5 text-yellow-500" />;
-      case 1:
-        return <Medal className="w-5 h-5 text-gray-400" />;
-      case 2:
-        return <Award className="w-5 h-5 text-amber-600" />;
-      default:
-        return <span className="w-5 h-5 text-center text-sm font-bold">{index + 1}</span>;
-    }
-  };
-
-  if (roundLoading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="max-w-4xl mx-auto">
-          <Skeleton className="h-10 w-32 mb-6" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
-          </div>
-        </div>
-      </div>
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
+        <CircularProgress size={60} />
+      </Container>
     );
   }
 
-  if (!round) {
+  if (error || !round || !stats) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 flex items-center justify-center">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-red-600">Round not found</p>
-            <Button onClick={() => navigate('/rounds')} className="w-full mt-4">
-              Back to Rounds
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <AppHeader
+          title="Error Loading Round"
+          onBack={() => navigate('/rounds')}
+          backButtonText="Back to Rounds"
+        />
+        <Container sx={{ mt: 4 }}>
+          <Alert severity="error">
+            {error instanceof Error ? error.message : 'Failed to load round data'}
+          </Alert>
+        </Container>
+      </>
     );
   }
 
-  const isActive = round.status === 'active' && timeLeft && timeLeft > 0;
-  const canTap = isActive && !tapMutation.isPending;
+  const roundWithStatus = calculateRoundStatus(round, currentTime);
+  const canTap = roundWithStatus.status === 'active' && user.role !== 'nikita';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="max-w-4xl mx-auto">
-        <Button
-          onClick={() => navigate('/rounds')}
-          variant="outline"
-          className="mb-6"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Rounds
-        </Button>
+    <>
+      <AppHeader
+        title={`Round ${round.id.slice(0, 8)}`}
+        onBack={() => navigate('/rounds')}
+        backButtonText="Back to Rounds"
+      />
 
-        {/* Индикатор подключения WebSocket (только если включен) */}
-        {isEnabled && (
-          <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-            WebSocket: {isConnected ? '🟢 Connected' : '🔴 Disconnected (using polling)'}
-          </div>
-        )}
+      <Container sx={{ mt: 4, mb: 8 }}>
+        <Grid container spacing={3}>
+          <Grid xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  Game Status
+                </Typography>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Game Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                Round {round.id.slice(0, 8)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Status */}
-              <div className="text-center">
-                <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  round.status === 'active' ? 'bg-green-100 text-green-800' :
-                    round.status === 'cooldown' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                }`}>
-                  {round.status.charAt(0).toUpperCase() + round.status.slice(1)}
-                </div>
-              </div>
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Typography variant="body1">Status:</Typography>
+                    <Chip
+                      label={roundWithStatus.status}
+                      color={roundWithStatus.status === 'active' ?
+                             'success' :
+                             roundWithStatus.status === 'cooldown' ? 'warning' : 'default'}
+                    />
+                  </Box>
 
-              {/* Timer */}
-              {timeLeft !== null && (
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                    {formatTime(timeLeft)}
-                  </div>
-                  <div className="text-gray-600 dark:text-gray-400">
-                    {isActive ? 'Time remaining' : 'Round ended'}
-                  </div>
-                </div>
-              )}
-
-              {/* Player Stats */}
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                <h3 className="font-semibold mb-2">Your Stats</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{playerStats.points}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Points</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{playerStats.taps}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Taps</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tap Button */}
-              <div className="text-center">
-                <Button
-                  onClick={handleTap}
-                  disabled={!canTap}
-                  size="lg"
-                  className={`w-32 h-32 rounded-full text-xl font-bold ${
-                    canTap
-                      ? 'bg-red-600 hover:bg-red-700 text-white transform hover:scale-105 transition-all'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  {tapMutation.isPending ? '...' : 'TAP!'}
-                </Button>
-                {!isActive && round.status === 'completed' && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    Round has ended
-                  </p>
-                )}
-                {round.status === 'cooldown' && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    Round hasn't started yet
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Leaderboard */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Leaderboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {statsLoading ? (
-                <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {stats?.leaderboard?.length === 0 ? (
-                    <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                      No players yet
-                    </p>
-                  ) : (
-                    stats?.leaderboard?.map((entry, index) => (
-                      <div
-                        key={entry.username}
-                        className={`flex items-center justify-between p-3 rounded-lg ${
-                          entry.username === user?.username
-                            ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                            : 'bg-gray-50 dark:bg-gray-800'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {getRankIcon(index)}
-                          <span className={`font-medium ${
-                            entry.username === user?.username ? 'text-blue-700 dark:text-blue-300' : ''
-                          }`}>
-                            {entry.username}
-                            {entry.username === user?.username && ' (You)'}
-                          </span>
-                        </div>
-                        <div className="font-bold text-lg">
-                          {entry.points}
-                        </div>
-                      </div>
-                    ))
+                  {roundWithStatus.timeLeft !== undefined && roundWithStatus.timeLeft > 0 && (
+                    <Typography variant="h4" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
+                      {formatTimeLeft(roundWithStatus.timeLeft)}
+                    </Typography>
                   )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+
+                  <Typography variant="h3" color="primary" sx={{ mt: 2 }}>
+                    {stats.playerPoints} pts
+                  </Typography>
+                </Box>
+
+                {canTap && (
+                  <Fab
+                    color="primary"
+                    size="large"
+                    onClick={() => tapMutation.mutate()}
+                    disabled={tapMutation.isPending}
+                    sx={{ width: '100%', height: 80, borderRadius: 4 }}
+                  >
+                    <Box sx={{ textAlign: 'center' }}>
+                      <TouchApp sx={{ fontSize: 40 }} />
+                      <Typography variant="h6">
+                        {tapMutation.isPending ? 'Tapping...' : 'TAP!'}
+                      </Typography>
+                    </Box>
+                  </Fab>
+                )}
+
+                {roundWithStatus.status === 'cooldown' && (
+                  <Alert severity="warning" sx={{ mt: 2 }}>
+                    Round starts in {formatTimeLeft(roundWithStatus.timeLeft || 0)}
+                  </Alert>
+                )}
+
+                {roundWithStatus.status === 'completed' && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    Round completed
+                  </Alert>
+                )}
+
+                {user.role === 'nikita' && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    👑 Nikita role: You can watch but cannot earn points
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  Leaderboard
+                </Typography>
+
+                {stats.leaderboard.length === 0 ? (
+                  <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+                    No players yet
+                  </Typography>
+                ) : (
+                  <List>
+                    {stats.leaderboard.map((entry, index) => (
+                      <ListItem
+                        key={entry.username}
+                        sx={{
+                          bgcolor: entry.username === user.username ? 'primary.light' : 'background.paper',
+                          borderRadius: 1,
+                          mb: 1
+                        }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Box>
+                                <Typography variant="h6" component="span" sx={{ mr: 1 }}>
+                                  #{index + 1}
+                                </Typography>
+                                <Typography
+                                  variant="body1"
+                                  component="span"
+                                  sx={{ fontWeight: entry.username === user.username ? 'bold' : 'normal' }}
+                                >
+                                  {entry.username}
+                                  {entry.username === user.username && ' (You)'}
+                                </Typography>
+                              </Box>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                {entry.points} pts
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </Container>
+    </>
   );
 }
