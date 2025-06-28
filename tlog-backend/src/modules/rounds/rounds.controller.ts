@@ -7,9 +7,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../users/dto/current-user.dto';
 import { Role } from '@prisma/client';
-import { RoundDto } from './dto/round.dto';
-import { RoundWithStatsDto } from './dto/round-with-stats.dto';
-import { RoundsQueryDto } from './dto/rounds-query.dto';
+import { RoundDetailsDto, RoundDto, RoundsQueryDto } from './dto';
 
 @ApiTags('Rounds')
 @ApiBearerAuth('access-token')
@@ -34,7 +32,7 @@ export class RoundsController {
   async getRoundWithStats(
     @Param('roundId', ParseUUIDPipe) roundId: string,
     @CurrentUser() user: CurrentUserDto,
-  ): Promise<RoundWithStatsDto> {
+  ): Promise<RoundDetailsDto> {
     return this.roundsService.roundStats(roundId, user.id);
   }
 }

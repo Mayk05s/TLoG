@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { RoundDto } from './dto/round.dto';
 import { RoundStatus } from './enums/round-status.enum';
 import { Round } from '@prisma/client';
-import { StatsResponseDto } from './dto/stats-response.dto';
+import { RoundStatsDto } from './dto';
 
 @Injectable()
 export class RoundsService {
@@ -98,7 +98,7 @@ export class RoundsService {
   /**
    * Get statistics for a round including player points and leaderboard
    */
-  async roundStats(roundId: string, userId?: string): Promise<StatsResponseDto> {
+  async roundStats(roundId: string, userId?: string): Promise<RoundStatsDto> {
     let playerPoints = 0;
 
     return this.tapsService.getStats(roundId, user.id);

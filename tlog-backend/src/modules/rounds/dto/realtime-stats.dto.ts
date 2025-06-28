@@ -1,6 +1,7 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { LeaderboardEntryDto } from './round-details.dto';
+
 import { RoundStatsDto } from './round-stats.dto';
+import { LeaderboardEntryDto } from './leaderboard-entry.dto';
 
 @Exclude()
 export class RealtimeStatsDto {
