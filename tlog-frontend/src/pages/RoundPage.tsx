@@ -24,7 +24,7 @@ export function RoundPage() {
   });
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['stats', id],
+    queryKey: ['rounds', id],
     queryFn: () => tapsApi.getStats(id!),
     enabled: !!id,
     refetchInterval: round?.status === 'active' ? 2000 : 5000, // Более частое обновление для активных раундов
@@ -34,7 +34,7 @@ export function RoundPage() {
     mutationFn: () => tapsApi.tap(id!),
     onSuccess: () => {
       // Обновляем статистику сразу после тапа
-      queryClient.invalidateQueries({ queryKey: ['stats', id] });
+      queryClient.invalidateQueries({ queryKey: ['rounds', id] });
     },
   });
 
@@ -47,7 +47,7 @@ export function RoundPage() {
         taps: prev.taps + 1,
       }));
       // Обновляем кеш React Query
-      queryClient.invalidateQueries({ queryKey: ['stats', id] });
+      queryClient.invalidateQueries({ queryKey: ['rounds', id] });
     },
   });
 
@@ -57,7 +57,7 @@ export function RoundPage() {
 
     const updateTimer = () => {
       const now = Date.now();
-      const endsAt = new Date(round.ends_at).getTime();
+      const endsAt = new Date(round.endsAt).getTime();
       const remaining = Math.max(0, Math.floor((endsAt - now) / 1000));
       setTimeLeft(remaining);
     };

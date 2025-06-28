@@ -96,6 +96,6 @@ export const tapsApi = {
   },
 
   async getStats(roundId: string): Promise<StatsResponse> {
-    return apiRequest(`/stats/${roundId}`, {}, StatsResponseSchema.parse);
+    return apiRequest(`/rounds/${roundId}`, {}, StatsResponseSchema.parse);
   },
 };

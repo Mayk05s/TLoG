@@ -157,7 +157,7 @@ export function RoundsPage() {
                     <div className="text-right text-sm text-gray-600 dark:text-gray-400">
                       <div>Created: {formatDate(round.created_at)}</div>
                       <div>Starts: {formatDate(round.starts_at)}</div>
-                      <div>Ends: {formatDate(round.ends_at)}</div>
+                      <div>Ends: {formatDate(round.endsAt)}</div>
                     </div>
                   </div>
                 </CardContent>

@@ -27,7 +27,7 @@ export const RoundSchema = z.object({
   id: z.string(),
   created_at: z.string(),
   starts_at: z.string(),
-  ends_at: z.string(),
+  endsAt: z.string(),
   status: z.enum(['cooldown', 'active', 'completed']),
 });
 

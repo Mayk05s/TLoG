@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
 import { LeaderboardEntryDto } from '../rounds/dto';
@@ -6,6 +6,8 @@ import { RoundStatsData } from './interfaces/round-stats-data.interface';
 
 @Injectable()
 export class PlayerStatsService {
+  private readonly logger = new Logger(PlayerStatsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly tapCache: TapCacheService,
@@ -87,11 +89,15 @@ export class PlayerStatsService {
       const { tapCount } = await this.tapCache.getCounters(roundId, userId);
 
       if (tapCount > 0 || points > 0) {
-        await this.prisma.playerRoundStats.upsert({
-          where: { roundId_userId: { roundId, userId } },
-          update: { taps: tapCount, points },
-          create: { userId, roundId, taps: tapCount, points },
-        });
+        try {
+          await this.prisma.playerRoundStats.upsert({
+            where: { roundId_userId: { roundId, userId } },
+            update: { taps: tapCount, points },
+            create: { userId, roundId, taps: tapCount, points },
+          });
+        } catch (error) {
+          this.logger.error(`Failed to sync stats for user ${userId}: ${error.message}`);
+        }
       }
     }
   }
@@ -113,7 +119,7 @@ export class PlayerStatsService {
         return username ? new LeaderboardEntryDto(username, entry.points) : null;
       })
       .filter(entry => entry !== null);
-
+    console.log('leaderboard', leaderboard);
     return leaderboard;
   }
 
