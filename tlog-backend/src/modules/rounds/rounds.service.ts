@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { RoundDto } from './dto/round.dto';
 import { RoundStatus } from './enums/round-status.enum';
 import { Round } from '@prisma/client';
+import { StatsResponseDto } from './dto/stats-response.dto';
 
 @Injectable()
 export class RoundsService {
@@ -92,5 +93,27 @@ export class RoundsService {
     }
 
     return round;
+  }
+
+  /**
+   * Get statistics for a round including player points and leaderboard
+   */
+  async roundStats(roundId: string, userId?: string): Promise<StatsResponseDto> {
+    let playerPoints = 0;
+
+    return this.tapsService.getStats(roundId, user.id);
+    // Get player points if userId provided
+    if (userId) {
+      const counters = await this.tapCache.getCounters(roundId, userId);
+      playerPoints = counters.points;
+    }
+
+    // Get leaderboard from Redis and convert userIds to usernames
+    const leaderboard = await this.buildLeaderboard(roundId, 10);
+
+    return {
+      playerPoints,
+      leaderboard,
+    };
   }
 }

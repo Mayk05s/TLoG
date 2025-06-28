@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoundsService } from './rounds.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -39,15 +30,11 @@ export class RoundsController {
     return this.roundsService.create();
   }
 
-  @Get(':id')
+  @Get(':roundId')
   async getRoundWithStats(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('roundId', ParseUUIDPipe) roundId: string,
     @CurrentUser() user: CurrentUserDto,
   ): Promise<RoundWithStatsDto> {
-    const round = await this.roundsService.findOne(id);
-    if (!round) {
-      throw new NotFoundException(`Round with ID ${id} not found`);
-    }
-    return { ...round, userId: user.id };
+    return this.roundsService.roundStats(roundId, user.id);
   }
 }

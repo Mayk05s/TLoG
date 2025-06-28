@@ -4,8 +4,7 @@ import { TapCacheService } from '../../cache/tap-cache.service';
 import { RoundsService } from '../rounds/rounds.service';
 import { TapsSyncService } from './taps-sync.service';
 import { TapResponseDto } from './dto/tap-response.dto';
-import { StatsResponseDto } from './dto/stats-response.dto';
-import { LeaderboardEntryDto } from './dto/leaderboard-entry.dto';
+import { LeaderboardEntryDto } from '../rounds/dto/leaderboard-entry.dto';
 import { Role } from '@prisma/client';
 
 /**
@@ -46,27 +45,6 @@ export class TapsService {
 
     return {
       success: true,
-    };
-  }
-
-  /**
-   * Get statistics for a round including player points and leaderboard
-   */
-  async getStats(roundId: string, userId?: string): Promise<StatsResponseDto> {
-    let playerPoints = 0;
-
-    // Get player points if userId provided
-    if (userId) {
-      const counters = await this.tapCache.getCounters(roundId, userId);
-      playerPoints = counters.points;
-    }
-
-    // Get leaderboard from Redis and convert userIds to usernames
-    const leaderboard = await this.buildLeaderboard(roundId, 10);
-
-    return {
-      playerPoints,
-      leaderboard,
     };
   }
 
