@@ -1,85 +1,54 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../database/prisma.service';
-import { TapCacheService } from '../cache/tap-cache.service';
 import { TapsService } from '../modules/taps/taps.service';
+import { RedisService } from '../cache/redis.service';
 
 @Injectable()
 export class FlushWorker {
   private readonly logger = new Logger(FlushWorker.name);
 
   constructor(
-    private prisma: PrismaService,
-    private tapCacheService: TapCacheService,
     private tapsService: TapsService,
+    private redisService: RedisService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async flushTapsToDatabase() {
     try {
-      // Get all active rounds
-      const now = new Date();
-      const activeRounds = await this.prisma.round.findMany({
-        where: {
-          startsAt: { lte: now },
-          endsAt: { gte: now },
-        },
-      });
+      const roundsWithData = await this.getActiveRoundsFromRedis();
 
-      for (const round of activeRounds) {
-        await this.flushRoundTaps(round.id);
-        await this.syncRoundStats(round.id);
+      for (const roundId of roundsWithData) {
+        // Save checkpoints for all users in round and sync their stats
+        await Promise.all([
+          this.tapsService.saveCheckpointRound(roundId, '30 seconds flush'),
+          this.tapsService.syncRoundStats(roundId),
+        ]);
+      }
+
+      if (roundsWithData.length > 0) {
+        this.logger.debug(`Processed ${roundsWithData.length} rounds with data`);
       }
     } catch (error) {
       this.logger.error('Failed to flush taps to database', error);
     }
   }
 
-  private async flushRoundTaps(roundId: string) {
-    const queueItems = await this.tapCacheService.getFlushQueue(roundId);
-
-    if (queueItems.length === 0) {
-      return;
-    }
-
-    const tapsToInsert = queueItems.map(item => {
-      const data = JSON.parse(item);
-      return {
-        userId: data.user_id,
-        roundId: roundId,
-        points: data.points,
-        timestamp: new Date(parseInt(data.timestamp) * 1000),
-      };
-    });
-
+  /**
+   * Get rounds that have data in Redis by checking leaderboard keys
+   */
+  private async getActiveRoundsFromRedis(): Promise<string[]> {
     try {
-      await this.prisma.tapEvent.createMany({
-        data: tapsToInsert,
-        skipDuplicates: true,
-      });
+      const leaderboardPattern = 'round:*:leaderboard';
+      const leaderboardKeys = await this.redisService.getClient().keys(leaderboardPattern);
 
-      this.logger.log(`Flushed ${tapsToInsert.length} tap events for round ${roundId}`);
+      const roundIds = leaderboardKeys
+        .map(key => key.split(':')[1])
+        .filter(roundId => roundId && roundId.length > 0);
+
+      return [...new Set(roundIds)];
     } catch (error) {
-      this.logger.error(`Failed to flush tap events for round ${roundId}`, error);
-    }
-  }
-
-  private async syncRoundStats(roundId: string) {
-    try {
-      // Get leaderboard to find all active users in this round
-      const leaderboardData = await this.tapCacheService.getLeaderboard(roundId, 100); // Get more users
-      const userIds: string[] = [];
-
-      for (let i = 0; i < leaderboardData.length; i += 2) {
-        userIds.push(leaderboardData[i]);
-      }
-
-      if (userIds.length > 0) {
-        await this.tapsService.syncPlayerStats(roundId, userIds);
-        this.logger.log(`Synced stats for ${userIds.length} players in round ${roundId}`);
-      }
-    } catch (error) {
-      this.logger.error(`Failed to sync stats for round ${roundId}`, error);
+      this.logger.error('Failed to get active rounds from Redis:', error);
+      return [];
     }
   }
 }

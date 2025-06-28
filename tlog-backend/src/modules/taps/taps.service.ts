@@ -2,11 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
 import { RoundsService } from '../rounds/rounds.service';
+import { TapsSyncService } from './taps-sync.service';
 import { TapResponseDto } from './dto/tap-response.dto';
 import { StatsResponseDto } from './dto/stats-response.dto';
 import { LeaderboardEntryDto } from './dto/leaderboard-entry.dto';
 import { Role } from '@prisma/client';
 
+/**
+ * Main service for tap processing and statistics
+ * Focuses on business logic and API responses
+ */
 @Injectable()
 export class TapsService {
   private readonly logger = new Logger(TapsService.name);
@@ -15,25 +20,33 @@ export class TapsService {
     private prisma: PrismaService,
     private tapCache: TapCacheService,
     private roundsService: RoundsService,
+    private tapsSyncService: TapsSyncService,
   ) {}
 
   /**
    * Process a tap with business logic for scoring
    */
   async processTap(roundId: string, userId: string, userRole: Role): Promise<TapResponseDto> {
-    // Проверяем что раунд активный
+    // Check that round is active
     await this.roundsService.getActiveRound(roundId);
 
-    // Определяем является ли пользователь nikita
     const isNikita = userRole === Role.nikita;
+    const { tapCount } = await this.tapCache.addDelta(roundId, userId, isNikita);
 
-    // Атомарно обрабатываем тап с подсчетом очков
-    const { tapCount, points } = await this.tapCache.addDelta(roundId, userId, isNikita);
+    // Checkpoint logic: save every 50 taps automatically
+    if (tapCount > 0 && tapCount % 50 === 0) {
+      // Save checkpoint and sync stats for this user (non-blocking)
+      Promise.all([
+        this.tapsSyncService.saveCheckpointAsync(roundId, userId, `50 taps reached (${tapCount})`),
+        this.tapsSyncService.syncSingleUserStats(roundId, userId),
+      ]).catch(error => {
+        this.logger.error(`Background sync failed for user ${userId}:`, error);
+      });
+    }
 
-    // Получаем текущие счетчики игрока
-    const counters = await this.tapCache.getCounters(roundId, userId);
-
-    return { success: true };
+    return {
+      success: true,
+    };
   }
 
   /**
@@ -42,22 +55,44 @@ export class TapsService {
   async getStats(roundId: string, userId?: string): Promise<StatsResponseDto> {
     let playerPoints = 0;
 
-    // Если передан userId, получаем очки игрока
+    // Get player points if userId provided
     if (userId) {
       const counters = await this.tapCache.getCounters(roundId, userId);
       playerPoints = counters.points;
     }
 
-    // Получаем лидерборд из Redis (теперь содержит userIds)
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 10);
+    // Get leaderboard from Redis and convert userIds to usernames
+    const leaderboard = await this.buildLeaderboard(roundId, 10);
 
-    // Конвертируем userIds в имена пользователей для ответа
+    return {
+      playerPoints,
+      leaderboard,
+    };
+  }
+
+  /**
+   * Delegate sync methods to TapsSyncService (used by FlushWorker)
+   */
+  async saveCheckpointRound(roundId: string, reason: string): Promise<void> {
+    return this.tapsSyncService.saveCheckpointRound(roundId, reason);
+  }
+
+  async syncRoundStats(roundId: string): Promise<void> {
+    return this.tapsSyncService.syncRoundStats(roundId);
+  }
+
+  /**
+   * Helper: Build leaderboard with usernames from Redis data
+   */
+  private async buildLeaderboard(roundId: string, limit: number): Promise<LeaderboardEntryDto[]> {
+    const leaderboardData = await this.tapCache.getLeaderboard(roundId, limit);
     const leaderboard: LeaderboardEntryDto[] = [];
+
     for (let i = 0; i < leaderboardData.length; i += 2) {
       const userId = leaderboardData[i];
       const points = parseInt(leaderboardData[i + 1]);
 
-      // Получаем имя пользователя из базы данных
+      // Get username from database
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: { username: true },
@@ -71,39 +106,6 @@ export class TapsService {
       }
     }
 
-    return {
-      playerPoints,
-      leaderboard,
-    };
-  }
-
-  /**
-   * Sync player stats to database - called by FlushWorker
-   */
-  async syncPlayerStats(roundId: string, userIds: string[]): Promise<void> {
-    for (const userId of userIds) {
-      const counters = await this.tapCache.getCounters(roundId, userId);
-
-      if (counters.tapCount > 0 || counters.points > 0) {
-        await this.prisma.playerRoundStats.upsert({
-          where: {
-            roundId_userId: {
-              roundId,
-              userId,
-            },
-          },
-          update: {
-            taps: counters.tapCount,
-            points: counters.points,
-          },
-          create: {
-            userId,
-            roundId,
-            taps: counters.tapCount,
-            points: counters.points,
-          },
-        });
-      }
-    }
+    return leaderboard;
   }
 }

@@ -65,6 +65,81 @@ export class TapCacheService implements OnModuleInit {
   }
 
   /**
+   * Get counters since last checkpoint for batching
+   */
+  async getCountersSinceCheckpoint(
+    roundId: string,
+    userId: string,
+  ): Promise<{ tapCount: number; points: number; lastCheckpoint: number }> {
+    const [tapCount, points, lastCheckpoint] = await Promise.all([
+      this.redisService.get(RedisTapKeys.userTapsKey(roundId, userId)),
+      this.redisService.get(RedisTapKeys.userPointsKey(roundId, userId)),
+      this.redisService.get(RedisTapKeys.userCheckpointKey(roundId, userId)),
+    ]);
+
+    const currentTaps = parseInt(tapCount || '0');
+    const currentPoints = parseInt(points || '0');
+    const checkpointTaps = parseInt(lastCheckpoint || '0');
+
+    return {
+      tapCount: currentTaps - checkpointTaps, // Тапы с последнего checkpoint
+      points: currentPoints, // Общие очки (пересчитаем delta)
+      lastCheckpoint: checkpointTaps,
+    };
+  }
+
+  /**
+   * Set checkpoint after successful batch save
+   */
+  async setCheckpoint(roundId: string, userId: string, tapCount: number): Promise<void> {
+    await this.redisService.set(
+      RedisTapKeys.userCheckpointKey(roundId, userId),
+      tapCount.toString(),
+    );
+  }
+
+  /**
+   * Check if user needs checkpoint (50+ taps or 10+ seconds)
+   */
+  async needsCheckpoint(
+    roundId: string,
+    userId: string,
+    tapThreshold: number = 50,
+    timeThreshold: number = 10000,
+  ): Promise<{ needsCheckpoint: boolean; reason: string }> {
+    const [tapCount, lastCheckpointTime] = await Promise.all([
+      this.redisService.get(RedisTapKeys.userTapsKey(roundId, userId)),
+      this.redisService.get(RedisTapKeys.userCheckpointTimeKey(roundId, userId)),
+    ]);
+
+    const currentTaps = parseInt(tapCount || '0');
+    const lastTime = parseInt(lastCheckpointTime || '0');
+    const now = Date.now();
+
+    // Проверяем количество тапов
+    if (currentTaps >= tapThreshold) {
+      return { needsCheckpoint: true, reason: `${currentTaps} taps reached` };
+    }
+
+    // Проверяем время
+    if (lastTime > 0 && now - lastTime >= timeThreshold) {
+      return { needsCheckpoint: true, reason: `${(now - lastTime) / 1000}s elapsed` };
+    }
+
+    return { needsCheckpoint: false, reason: 'threshold not reached' };
+  }
+
+  /**
+   * Update checkpoint timestamp
+   */
+  async updateCheckpointTime(roundId: string, userId: string): Promise<void> {
+    await this.redisService.set(
+      RedisTapKeys.userCheckpointTimeKey(roundId, userId),
+      Date.now().toString(),
+    );
+  }
+
+  /**
    * Get leaderboard for a round
    */
   async getLeaderboard(roundId: string, limit: number = 10): Promise<string[]> {

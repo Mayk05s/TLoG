@@ -19,4 +19,13 @@ export class RedisTapKeys {
   static flushQueueKey(roundId: string): string {
     return `round:${roundId}:flush_queue`;
   }
+
+  // Checkpoint keys for reliability
+  static userCheckpointKey(roundId: string, userId: string): string {
+    return `round:${roundId}:user:${userId}:checkpoint`;
+  }
+
+  static userCheckpointTimeKey(roundId: string, userId: string): string {
+    return `round:${roundId}:user:${userId}:checkpoint_time`;
+  }
 }
