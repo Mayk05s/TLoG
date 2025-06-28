@@ -8,21 +8,30 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  FormControl,
+  IconButton,
+  InputLabel,
   List,
   ListItem,
   ListItemText,
+  MenuItem,
+  Select,
   Typography,
 } from '@mui/material';
-import { API_BASE_URL, authApi, tapsApi } from '../api';
-import { BOT_BEHAVIOR, BOTS_CONFIG } from '../config/bots.config';
+import { Close, Pause, PlayArrow } from '@mui/icons-material';
+import { API_BASE_URL, authApi } from '../api';
+import { BOT_BEHAVIOR, BOT_SPEED_PRESETS, BOTS_CONFIG } from '../config/bots.config';
+
+type SpeedPreset = keyof typeof BOT_SPEED_PRESETS;
 
 interface BotStatus {
   username: string;
-  status: 'idle' | 'authenticating' | 'registering' | 'active' | 'error';
+  status: 'idle' | 'authenticating' | 'registering' | 'active' | 'paused' | 'error';
   token?: string;
   tapsCount: number;
   lastTap?: number;
   error?: string;
+  speedPreset: SpeedPreset;
 }
 
 interface BotManagerProps {
@@ -32,21 +41,21 @@ interface BotManagerProps {
 }
 
 export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerProps) {
-  const [bots, setBots] = useState<BotStatus[]>([]);
+  const [activeBots, setActiveBots] = useState<BotStatus[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isAddingBot, setIsAddingBot] = useState(false);
+  const [selectedSpeed, setSelectedSpeed] = useState<SpeedPreset>('normal');
   const intervalsRef = useRef<Map<string, number>>(new Map());
 
   const stopAllBots = useCallback(() => {
-    intervalsRef.current.forEach((interval, username) => {
+    intervalsRef.current.forEach((interval) => {
       clearInterval(interval);
-      updateBotStatus(username, { status: 'idle' });
     });
     intervalsRef.current.clear();
+    setActiveBots([]);
   }, []);
 
   useEffect(() => {
-    initializeBots();
     return () => {
       stopAllBots();
     };
@@ -57,15 +66,6 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       stopAllBots();
     }
   }, [roundStatus, stopAllBots]);
-
-  const initializeBots = () => {
-    const initialBots: BotStatus[] = BOTS_CONFIG.map(bot => ({
-      username: bot.username,
-      status: 'idle',
-      tapsCount: 0,
-    }));
-    setBots(initialBots);
-  };
 
   const authenticateBot = async (botConfig: typeof BOTS_CONFIG[0]): Promise<string | null> => {
     try {
@@ -85,8 +85,8 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       },
       body: JSON.stringify({
         username: botConfig.username,
-        password: botConfig.password
-      })
+        password: botConfig.password,
+      }),
     });
 
     if (!response.ok) {
@@ -95,7 +95,7 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   };
 
   const updateBotStatus = (username: string, updates: Partial<BotStatus>) => {
-    setBots(prev => prev.map(bot =>
+    setActiveBots(prev => prev.map(bot =>
       bot.username === username ? { ...bot, ...updates } : bot,
     ));
   };
@@ -104,25 +104,30 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
     if (!bot.token || roundStatus !== 'active') return;
 
     try {
-      const currentToken = localStorage.getItem('accessToken');
-      localStorage.setItem('accessToken', bot.token);
-
-      await tapsApi.submitTap(roundId);
-
-      if (currentToken) {
-        localStorage.setItem('accessToken', currentToken);
-      }
-
-      updateBotStatus(bot.username, {
-        tapsCount: bot.tapsCount + 1,
-        lastTap: Date.now(),
+      const response = await fetch(`${API_BASE_URL}/tap/${roundId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${bot.token}`,
+        },
       });
 
-      if (onStatsUpdate) {
-        onStatsUpdate();
+      if (!response.ok) {
+        throw new Error(`Tap failed: ${response.status}`);
       }
+      
+      setActiveBots(prev => prev.map(existingBot =>
+        existingBot.username === bot.username
+          ? {
+            ...existingBot,
+            tapsCount: existingBot.tapsCount + 1,
+            lastTap: Date.now(),
+          }
+          : existingBot,
+      ));
+
     } catch (error) {
       console.error(`Bot ${bot.username} tap failed:`, error);
+
       updateBotStatus(bot.username, {
         status: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -130,15 +135,17 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
     }
   };
 
-  const getRandomInterval = () => {
+  const getRandomInterval = (speedPreset: SpeedPreset) => {
+    const preset = BOT_SPEED_PRESETS[speedPreset];
     return Math.floor(
-      Math.random() * (BOT_BEHAVIOR.MAX_TAP_INTERVAL - BOT_BEHAVIOR.MIN_TAP_INTERVAL) +
-      BOT_BEHAVIOR.MIN_TAP_INTERVAL,
+      Math.random() * (preset.maxInterval - preset.minInterval) + preset.minInterval,
     );
   };
 
   const startBot = (bot: BotStatus) => {
     if (!bot.token || roundStatus !== 'active') return;
+
+    const preset = BOT_SPEED_PRESETS[bot.speedPreset];
 
     const interval = setInterval(() => {
       if (roundStatus !== 'active') {
@@ -146,10 +153,10 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
         return;
       }
 
-      if (Math.random() < BOT_BEHAVIOR.CHANCE_TO_TAP_PER_CHECK) {
+      if (Math.random() < preset.tapChance) {
         performBotTap(bot);
       }
-    }, getRandomInterval());
+    }, getRandomInterval(bot.speedPreset));
 
     intervalsRef.current.set(bot.username, interval);
     updateBotStatus(bot.username, { status: 'active' });
@@ -161,63 +168,94 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       clearInterval(interval);
       intervalsRef.current.delete(username);
     }
-    updateBotStatus(username, { status: 'idle' });
+    setActiveBots(prev => prev.filter(bot => bot.username !== username));
   };
 
-  const addAllBots = async () => {
-    if (roundStatus !== 'active') return;
+  const pauseBot = (username: string) => {
+    const interval = intervalsRef.current.get(username);
+    if (interval) {
+      clearInterval(interval);
+      intervalsRef.current.delete(username);
+    }
+    updateBotStatus(username, { status: 'paused' });
+  };
 
-    setIsInitializing(true);
+  const resumeBot = (username: string) => {
+    const bot = activeBots.find(b => b.username === username);
+    if (bot && bot.token) {
+      startBot(bot);
+    }
+  };
 
-    for (const botConfig of BOTS_CONFIG) {
-      updateBotStatus(botConfig.username, { status: 'authenticating' });
+  const getNextAvailableBot = () => {
+    const usedBotNames = activeBots.map(bot => bot.username);
+    return BOTS_CONFIG.find(bot => !usedBotNames.includes(bot.username));
+  };
 
-      try {
-        let token = await authenticateBot(botConfig);
+  const addBot = async () => {
+    if (roundStatus !== 'active' || activeBots.length >= BOT_BEHAVIOR.MAX_BOTS) return;
 
-        if (!token) {
-          updateBotStatus(botConfig.username, { status: 'registering' });
-          await registerBot(botConfig);
-          token = await authenticateBot(botConfig);
-        }
+    const botConfig = getNextAvailableBot();
+    if (!botConfig) return;
 
-        if (token) {
-          updateBotStatus(botConfig.username, {
-            status: 'idle',
-            token,
-            error: undefined,
-          });
+    setIsAddingBot(true);
 
-          const botStatus = bots.find(b => b.username === botConfig.username);
-          if (botStatus) {
-            startBot({ ...botStatus, token });
-          }
-        } else {
-          updateBotStatus(botConfig.username, {
-            status: 'error',
-            error: 'Failed to authenticate after registration',
-          });
-        }
-      } catch (error) {
-        updateBotStatus(botConfig.username, {
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
+    const newBot: BotStatus = {
+      username: botConfig.username,
+      status: 'authenticating',
+      tapsCount: 0,
+      speedPreset: selectedSpeed,
+    };
+
+    setActiveBots(prev => [...prev, newBot]);
+
+    try {
+      let token = await authenticateBot(botConfig);
+
+      if (!token) {
+        updateBotStatus(botConfig.username, { status: 'registering' });
+        await registerBot(botConfig);
+        token = await authenticateBot(botConfig);
       }
 
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (token) {
+        updateBotStatus(botConfig.username, {
+          status: 'idle',
+          token,
+          error: undefined,
+        });
+
+        const botWithToken = { ...newBot, token };
+        startBot(botWithToken);
+      } else {
+        updateBotStatus(botConfig.username, {
+          status: 'error',
+          error: 'Failed to authenticate after registration',
+        });
+      }
+    } catch (error) {
+      updateBotStatus(botConfig.username, {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
     }
 
-    setIsInitializing(false);
+    setIsAddingBot(false);
+  };
+
+  const getShortBotName = (username: string) => {
+    return username.replace('bot_', '').replace('_2', '²');
   };
 
   const getStatusColor = (status: BotStatus['status']) => {
     switch (status) {
       case 'active':
         return 'success';
+      case 'paused':
+        return 'warning';
       case 'authenticating':
       case 'registering':
-        return 'warning';
+        return 'info';
       case 'error':
         return 'error';
       default:
@@ -230,20 +268,23 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
       case 'idle':
         return 'Ready';
       case 'authenticating':
-        return 'Logging in...';
+        return 'Login...';
       case 'registering':
-        return 'Registering...';
+        return 'Signup...';
       case 'active':
-        return `Active (${bot.tapsCount} taps)`;
+        return `${bot.tapsCount}`;
+      case 'paused':
+        return 'Paused';
       case 'error':
-        return bot.error || 'Error';
+        return 'Error';
       default:
         return 'Unknown';
     }
   };
 
-  const activeBots = bots.filter(bot => bot.status === 'active').length;
-  const totalTaps = bots.reduce((sum, bot) => sum + bot.tapsCount, 0);
+  const activeBotsCount = activeBots.filter(bot => bot.status === 'active').length;
+  const totalTaps = activeBots.reduce((sum, bot) => sum + bot.tapsCount, 0);
+  const canAddMore = activeBots.length < BOT_BEHAVIOR.MAX_BOTS && getNextAvailableBot();
 
   if (roundStatus === 'completed') {
     return null;
@@ -252,82 +293,124 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   return (
     <Card sx={{ mt: 2 }}>
       <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
             🤖 Bot Manager
           </Typography>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={addAllBots}
-            disabled={isInitializing || roundStatus !== 'active'}
-            sx={{ minWidth: '100px' }}
-          >
-            {isInitializing ? (
-              <CircularProgress size={16} color="inherit" />
-            ) : (
-              'Add Bots'
-            )}
-          </Button>
+
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+            <FormControl size="small" sx={{ minWidth: 100 }}>
+              <InputLabel>Speed</InputLabel>
+              <Select
+                value={selectedSpeed}
+                label="Speed"
+                onChange={(e) => setSelectedSpeed(e.target.value as SpeedPreset)}
+                disabled={roundStatus !== 'active'}
+              >
+                {Object.entries(BOT_SPEED_PRESETS).map(([key, preset]) => (
+                  <MenuItem key={key} value={key}>
+                    {preset.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Button
+              variant="contained"
+              size="small"
+              onClick={addBot}
+              disabled={isAddingBot || roundStatus !== 'active' || !canAddMore}
+              sx={{ minWidth: '100px' }}
+            >
+              {isAddingBot ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                'Add Bot'
+              )}
+            </Button>
+          </Box>
+
+          <Typography variant="body2" color="text.secondary">
+            {activeBots.length}/{BOT_BEHAVIOR.MAX_BOTS} bots • {activeBotsCount} active
+          </Typography>
         </Box>
 
-        {activeBots > 0 && (
+        {activeBotsCount > 0 && (
           <Alert severity="info" sx={{ mb: 2 }}>
-            {activeBots} bots active • {totalTaps} total taps
+            {activeBotsCount} bots active • {totalTaps} total taps
           </Alert>
         )}
 
-        <Button
-          variant="text"
-          size="small"
-          onClick={() => setIsExpanded(!isExpanded)}
-          sx={{ mb: 1 }}
-        >
-          {isExpanded ? 'Hide Details' : 'Show Details'}
-        </Button>
+        {activeBots.length > 0 && (
+          <>
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => setIsExpanded(!isExpanded)}
+              sx={{ mb: 1 }}
+            >
+              {isExpanded ? 'Hide Details' : 'Show Details'}
+            </Button>
 
-        <Collapse in={isExpanded}>
-          <List dense>
-            {bots.map((bot) => (
-              <ListItem
-                key={bot.username}
-                sx={{
-                  bgcolor: bot.status === 'active' ? 'success.light' : 'transparent',
-                  borderRadius: 1,
-                  mb: 0.5,
-                  opacity: bot.status === 'error' ? 0.7 : 1,
-                }}
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {bot.username}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Chip
-                          label={getStatusText(bot)}
-                          color={getStatusColor(bot.status)}
-                          size="small"
-                        />
-                        {bot.status === 'active' && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => stopBot(bot.username)}
-                            sx={{ minWidth: '60px', fontSize: '0.75rem' }}
-                          >
-                            Stop
-                          </Button>
-                        )}
-                      </Box>
-                    </Box>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Collapse>
+            <Collapse in={isExpanded}>
+              <List dense>
+                {activeBots.map((bot) => (
+                  <ListItem
+                    key={bot.username}
+                    sx={{
+                      bgcolor: bot.status === 'active' ? 'success.light' : 'transparent',
+                      borderRadius: 1,
+                      mb: 0.5,
+                      opacity: bot.status === 'error' ? 0.7 : 1,
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {getShortBotName(bot.username)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Speed: {BOT_SPEED_PRESETS[bot.speedPreset].name}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              label={getStatusText(bot)}
+                              color={getStatusColor(bot.status)}
+                              size="small"
+                            />
+
+                            {/* Кнопка паузы/воспроизведения */}
+                            {(bot.status === 'active' || bot.status === 'paused') && (
+                              <IconButton
+                                size="small"
+                                onClick={() => bot.status === 'active' ? pauseBot(bot.username) : resumeBot(bot.username)}
+                                color={bot.status === 'active' ? 'warning' : 'success'}
+                              >
+                                {bot.status === 'active' ? <Pause fontSize="small" /> : <PlayArrow fontSize="small" />}
+                              </IconButton>
+                            )}
+
+                            {/* Кнопка удаления (крестик) */}
+                            <IconButton
+                              size="small"
+                              onClick={() => stopBot(bot.username)}
+                              color="error"
+                            >
+                              <Close fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      }
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Collapse>
+          </>
+        )}
       </CardContent>
     </Card>
   );
