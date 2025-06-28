@@ -1,5 +1,4 @@
-import { AppBar, Button, IconButton, Toolbar, Typography } from '@mui/material';
-import { Logout } from '@mui/icons-material';
+import { Box, Button, Container, Typography } from '@mui/material';
 
 interface AppHeaderProps {
   title: string;
@@ -12,27 +11,40 @@ interface AppHeaderProps {
 
 export function AppHeader({ title, username, role, onLogout, onBack, backButtonText }: AppHeaderProps) {
   return (
-    <AppBar position="static">
-      <Toolbar>
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          {title}
-        </Typography>
-        {username && role && (
-          <Typography variant="body1" sx={{ mr: 2 }}>
-            {username} ({role})
-          </Typography>
-        )}
-        {onBack && (
-          <Button color="inherit" onClick={onBack}>
-            {backButtonText || 'Back'}
-          </Button>
-        )}
-        {onLogout && (
-          <IconButton color="inherit" onClick={onLogout}>
-            <Logout />
-          </IconButton>
-        )}
-      </Toolbar>
-    </AppBar>
+    <Box sx={{
+      bgcolor: 'background.paper',
+      borderBottom: 1,
+      borderColor: 'divider',
+      mb: 3,
+      py: 2,
+    }}>
+      <Container maxWidth="lg">
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+              The Last of Guss
+            </Typography>
+            {username && role && (
+              <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                Welcome, {username}! 🎮 (Role: {role})
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {onBack && (
+              <Button variant="outlined" onClick={onBack}>
+                {backButtonText || 'Back'}
+              </Button>
+            )}
+            {onLogout && (
+              <Button variant="contained" color="error" onClick={onLogout}>
+                Logout
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Container>
+    </Box>
   );
 }

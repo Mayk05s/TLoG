@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Container,
   Grid,
@@ -15,9 +16,8 @@ import {
 } from '@mui/material';
 import { Add, Refresh } from '@mui/icons-material';
 import { type Round, roundsApi } from '../api';
-import { calculateRoundStatus } from '../lib/utils';
+import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
-import { RoundStatusChip } from '../components/RoundStatusChip';
 
 export function RoundsPage() {
   const navigate = useNavigate();
@@ -30,7 +30,6 @@ export function RoundsPage() {
     refetchInterval: 5000,
   });
 
-  // Handle authentication errors
   useEffect(() => {
     if (error && error.message.includes('401')) {
       localStorage.clear();
@@ -53,17 +52,83 @@ export function RoundsPage() {
     navigate('/login');
   };
 
+  const getStatusText = (round: Round): string => {
+    const roundWithStatus = calculateRoundStatus(round, currentTime);
+    switch (roundWithStatus.status) {
+      case 'cooldown':
+        return `Starts in ${formatTimeLeft(roundWithStatus.timeLeft || 0)}`;
+      case 'active':
+        return `${formatTimeLeft(roundWithStatus.timeLeft || 0)} left`;
+      case 'completed':
+        return 'Completed';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'cooldown': return 'warning';
+      case 'completed': return 'default';
+      default: return 'default';
+    }
+  };
+
+  // Сортировка раундов: активные → ожидающие → завершенные
+  const sortRoundsByStatus = (rounds: Round[]) => {
+    const roundsWithStatus = rounds.map(round => ({
+      ...round,
+      calculatedStatus: calculateRoundStatus(round, currentTime)
+    }));
+
+    return roundsWithStatus.sort((a, b) => {
+      const statusOrder = { active: 0, cooldown: 1, completed: 2 };
+      const aOrder = statusOrder[a.calculatedStatus.status] ?? 3;
+      const bOrder = statusOrder[b.calculatedStatus.status] ?? 3;
+
+      if (aOrder !== bOrder) return aOrder - bOrder;
+
+      // Внутри каждой группы сортируем по времени создания (новые первыми)
+      return b.createdAt - a.createdAt;
+    });
+  };
+
+  // Группировка раундов по статусу
+  const groupRoundsByStatus = (rounds: Round[]) => {
+    const sortedRounds = sortRoundsByStatus(rounds);
+    const groups = {
+      active: [] as Round[],
+      cooldown: [] as Round[],
+      completed: [] as Round[]
+    };
+
+    sortedRounds.forEach(round => {
+      const status = calculateRoundStatus(round, currentTime).status;
+      if (status in groups) {
+        groups[status].push(round);
+      }
+    });
+
+    return groups;
+  };
+
   if (isLoading) {
     return (
-      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
-        <CircularProgress size={60} />
+      <Container maxWidth="md" sx={{ mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading rounds...
+          </Typography>
+        </Box>
       </Container>
     );
   }
 
   if (error) {
     return (
-      <Container sx={{ mt: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 4 }}>
         <Alert
           severity="error"
           action={
@@ -87,7 +152,7 @@ export function RoundsPage() {
         onLogout={handleLogout}
       />
 
-      <Container sx={{ mt: 4, mb: 8 }}>
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5">
             Available Rounds ({rounds?.length || 0})
@@ -109,49 +174,150 @@ export function RoundsPage() {
             <Typography variant="h6" color="text.secondary">
               No rounds available yet.
             </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {user.role === 'admin' ? 'Create your first round!' : 'Wait for an admin to create a round.'}
+            </Typography>
           </Paper>
         ) : (
-          <Grid container spacing={2}>
-            {rounds?.map((round) => {
-              const roundWithStatus = calculateRoundStatus(round, currentTime);
+          <>
+            {(() => {
+              const groupedRounds = groupRoundsByStatus(rounds);
+
               return (
-                <Grid item xs={12} key={round.id}>
-                  <Card
-                    sx={{ cursor: 'pointer', '&:hover': { elevation: 4 } }}
-                    onClick={() => navigate(`/rounds/${round.id}`)}
-                  >
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box>
-                          <Typography variant="h6" gutterBottom>
-                            Round {round.id.slice(0, 8)}
-                          </Typography>
-                          <Box sx={{ mb: 1 }}>
-                            <RoundStatusChip roundWithStatus={roundWithStatus} />
-                          </Box>
-                          <Typography variant="body2" color="text.secondary">
-                            Created: {new Date(round.createdAt).toLocaleString()}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Starts: {new Date(round.startsAt).toLocaleString()}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Ends: {new Date(round.endsAt).toLocaleString()}
-                          </Typography>
-                        </Box>
-                        <Box sx={{ fontSize: '2rem' }}>
-                          {roundWithStatus.status === 'active' ? '🟢' :
-                           roundWithStatus.status === 'cooldown' ? '🟡' : '⚪'}
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
+                <>
+                  {/* Активные раунды */}
+                  {groupedRounds.active.length > 0 && (
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="h6" sx={{ mb: 2, color: 'success.main' }}>
+                        🟢 Active Rounds ({groupedRounds.active.length})
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {groupedRounds.active.map((round) => (
+                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                            <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+
+                  {/* Ожидающие раунды */}
+                  {groupedRounds.cooldown.length > 0 && (
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="h6" sx={{ mb: 2, color: 'warning.main' }}>
+                        🟡 Starting Soon ({groupedRounds.cooldown.length})
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {groupedRounds.cooldown.map((round) => (
+                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                            <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+
+                  {/* Завершенные раунды */}
+                  {groupedRounds.completed.length > 0 && (
+                    <Box>
+                      <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary' }}>
+                        ⚪ Completed Rounds ({groupedRounds.completed.length})
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {groupedRounds.completed.map((round) => (
+                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                            <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Box>
+                  )}
+                </>
               );
-            })}
-          </Grid>
+            })()}
+          </>
         )}
       </Container>
     </>
+  );
+}
+
+// Отдельный компонент для карточки раунда
+function RoundCard({ round, currentTime, navigate }: {
+  round: Round;
+  currentTime: number;
+  navigate: (path: string) => void;
+}) {
+  const roundWithStatus = calculateRoundStatus(round, currentTime);
+
+  const getStatusText = (): string => {
+    switch (roundWithStatus.status) {
+      case 'cooldown':
+        return `Starts in ${formatTimeLeft(roundWithStatus.timeLeft || 0)}`;
+      case 'active':
+        return `${formatTimeLeft(roundWithStatus.timeLeft || 0)} left`;
+      case 'completed':
+        return 'Completed';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (roundWithStatus.status) {
+      case 'active': return 'success';
+      case 'cooldown': return 'warning';
+      case 'completed': return 'default';
+      default: return 'default';
+    }
+  };
+
+  return (
+    <Card
+      sx={{
+        cursor: 'pointer',
+        height: '140px',
+        display: 'flex',
+        flexDirection: 'column',
+        '&:hover': {
+          boxShadow: 4,
+          transform: 'translateY(-2px)'
+        },
+        transition: 'all 0.2s'
+      }}
+      onClick={() => navigate(`/rounds/${round.id}`)}
+    >
+      <CardContent sx={{ flex: 1, p: 2, '&:last-child': { pb: 2 } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 600, mr: 2 }}>
+            Round {round.id.slice(0, 8)}
+          </Typography>
+          <Box sx={{ fontSize: '1.5rem', flexShrink: 0 }}>
+            {roundWithStatus.status === 'active' ? '🟢' :
+             roundWithStatus.status === 'cooldown' ? '🟡' : '⚪'}
+          </Box>
+        </Box>
+
+        <Chip
+          label={getStatusText()}
+          color={getStatusColor() as any}
+          size="small"
+          sx={{ width: '100%', mb: 1 }}
+        />
+
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 'auto',
+            fontSize: '0.875rem'
+          }}
+        >
+          {roundWithStatus.status === 'active' && '🔥 Active now!'}
+          {roundWithStatus.status === 'cooldown' && '⏰ Get ready...'}
+          {roundWithStatus.status === 'completed' && '✅ Finished'}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 }

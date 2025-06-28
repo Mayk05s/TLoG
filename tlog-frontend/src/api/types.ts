@@ -24,7 +24,10 @@ export interface RoundDetailsResponse {
 
 export interface StatsResponse {
   round: Round;
-  playerPoints: number;
+  stats: {
+    totalPoints: number;
+    currentUserPoints: number;
+  };
   leaderboard: LeaderboardEntry[];
 }
 

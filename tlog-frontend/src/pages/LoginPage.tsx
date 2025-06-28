@@ -40,9 +40,14 @@ export function LoginPage() {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Card>
-        <CardContent sx={{ p: 4 }}>
+    <Container maxWidth="sm" sx={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <Card sx={{ width: '100%', p: 2 }}>
+        <CardContent>
           <Typography variant="h4" component="h1" align="center" gutterBottom>
             The Last of Guss
           </Typography>
@@ -52,7 +57,7 @@ export function LoginPage() {
               fullWidth
               label="Username"
               value={username}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUsername(e.target.value)}
+              onChange={(e) => setUsername(e.target.value)}
               margin="normal"
               required
               disabled={loginMutation.isPending}
@@ -63,7 +68,7 @@ export function LoginPage() {
               label="Password"
               type="password"
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               required
               disabled={loginMutation.isPending}
@@ -87,6 +92,16 @@ export function LoginPage() {
               {loginMutation.isPending ? 'Connecting...' : 'Login'}
             </Button>
           </Box>
+
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              ✅ React Query интегрирован<br/>
+              🔌 Подключение к API: http://localhost:3001<br/>
+              📍 Сейчас на: /login<br/>
+              {loginMutation.isPending && '⏳ Отправка запроса...'}
+              {error && '❌ Ошибка подключения к бэкенду'}
+            </Typography>
+          </Alert>
         </CardContent>
       </Card>
     </Container>
