@@ -20,6 +20,7 @@ import { type RoundDetailsResponse, roundsApi, type StatsResponse, tapsApi } fro
 import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
 import { GooseButton } from '../components/GooseButton';
+import { BotManager } from '../components/BotManager';
 
 export function RoundPage() {
   const { id } = useParams<{ id: string }>();
@@ -139,7 +140,7 @@ export function RoundPage() {
                     label={roundWithStatus.status.charAt(0).toUpperCase() + roundWithStatus.status.slice(1)}
                     color={roundWithStatus.status === 'active' ? 'success' :
                            roundWithStatus.status === 'cooldown' ? 'warning' : 'default'}
-                    size="large"
+                    size="medium"
                   />
                   {roundWithStatus.timeLeft !== undefined && roundWithStatus.timeLeft > 0 && (
                     <Typography variant="h4" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
@@ -277,6 +278,13 @@ export function RoundPage() {
                 )}
               </CardContent>
             </Card>
+
+
+              <BotManager
+                roundId={id!}
+                roundStatus={roundWithStatus.status}
+                onStatsUpdate={refetchStats}
+              />
           </Box>
         </Box>
       </Container>
