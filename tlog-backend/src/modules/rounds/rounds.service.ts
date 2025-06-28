@@ -1,16 +1,19 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { ConfigService } from '@nestjs/config';
-import { RoundDto } from './dto/round.dto';
+import { TapCacheService } from '../../cache/tap-cache.service';
+import { PlayerStatsService } from './player-stats.service';
+import { LeaderboardEntryDto, RoundDetailsDto, RoundDto, RoundStatsDto } from './dto';
 import { RoundStatus } from './enums/round-status.enum';
 import { Round } from '@prisma/client';
-import { RoundStatsDto } from './dto';
+import { ConfigService } from '../../config/config.service';
 
 @Injectable()
 export class RoundsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly tapCache: TapCacheService,
+    private readonly playerStatsService: PlayerStatsService,
   ) {}
 
   async findAll(status?: RoundStatus): Promise<RoundDto[]> {
@@ -40,17 +43,29 @@ export class RoundsService {
     return rounds.map(round => new RoundDto(round));
   }
 
-  async findOne(id: string): Promise<RoundDto | null> {
-    const round = await this.prisma.round.findUnique({
-      where: { id },
+  async findOne(roundId: string): Promise<Round> {
+    const round: Round | null = await this.prisma.round.findUnique({
+      where: { id: roundId },
     });
 
-    return round ? new RoundDto(round) : null;
+    if (!round) {
+      throw new NotFoundException('Round not found');
+    }
+
+    return round;
+  }
+
+  async isRoundActive(roundId: string): Promise<void> {
+    const round: Round = await this.findOne(roundId);
+
+    const now = new Date();
+    if (now < round.startsAt || now > round.endsAt) {
+      throw new ConflictException('Round is not active');
+    }
   }
 
   async create(): Promise<RoundDto> {
-    const roundDuration = this.configService.get<number>('app.roundDuration') || 60;
-    const cooldownDuration = this.configService.get<number>('app.cooldownDuration') || 30;
+    const { roundDuration, cooldownDuration } = this.configService;
 
     const now = new Date();
     const startsAt = new Date(now.getTime() + cooldownDuration * 1000);
@@ -66,54 +81,39 @@ export class RoundsService {
     return new RoundDto(round);
   }
 
-  async isRoundActive(roundId: string): Promise<boolean> {
-    const round = await this.prisma.round.findUnique({
-      where: { id: roundId },
-    });
-
-    if (!round) {
-      return false;
-    }
+  async roundStats(roundId: string, userId: string): Promise<RoundDetailsDto> {
+    const round: Round = await this.findOne(roundId);
 
     const now = new Date();
-    return now >= round.startsAt && now <= round.endsAt;
-  }
+    const isRoundEnd = now > round.endsAt;
+    const [playerPoints, totalPoints, leaderboard] = await Promise.all([
+      this.playerStatsService.getPlayerPoints(roundId, userId),
+      this.playerStatsService.getTotalPoints(roundId),
+      this.playerStatsService.getLeaderboard(roundId),
+    ]);
 
-  async getActiveRound(roundId: string): Promise<Round> {
-    const round: Round | null = await this.prisma.round.findUnique({
-      where: { id: roundId },
+    if (isRoundEnd) {
+      const hasRoundInCache = await this.checkRoundInCache(roundId);
+      if (hasRoundInCache) {
+        void this.playerStatsService.syncRoundStats(roundId);
+      }
+    }
+
+    const winner: LeaderboardEntryDto | undefined = isRoundEnd ? leaderboard[0] : undefined;
+
+    const roundDetails = new RoundDetailsDto(round);
+    roundDetails.stats = new RoundStatsDto({
+      totalPoints: totalPoints,
+      currentUserPoints: playerPoints,
+      winner,
     });
-    if (!round) {
-      throw new NotFoundException('Round not found');
-    }
+    roundDetails.leaderboard = leaderboard;
 
-    const now = new Date();
-    if (now < round.startsAt || now > round.endsAt) {
-      throw new ConflictException('Round is not active');
-    }
-
-    return round;
+    return roundDetails;
   }
 
-  /**
-   * Get statistics for a round including player points and leaderboard
-   */
-  async roundStats(roundId: string, userId?: string): Promise<RoundStatsDto> {
-    let playerPoints = 0;
-
-    return this.tapsService.getStats(roundId, user.id);
-    // Get player points if userId provided
-    if (userId) {
-      const counters = await this.tapCache.getCounters(roundId, userId);
-      playerPoints = counters.points;
-    }
-
-    // Get leaderboard from Redis and convert userIds to usernames
-    const leaderboard = await this.buildLeaderboard(roundId, 10);
-
-    return {
-      playerPoints,
-      leaderboard,
-    };
+  private async checkRoundInCache(roundId: string): Promise<boolean> {
+    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 1);
+    return leaderboardData.length > 0;
   }
 }

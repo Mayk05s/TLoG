@@ -27,7 +27,7 @@ export class TapsService {
    */
   async processTap(roundId: string, userId: string, userRole: Role): Promise<TapResponseDto> {
     // Check that round is active
-    await this.roundsService.getActiveRound(roundId);
+    await this.roundsService.isRoundActive(roundId);
 
     const isNikita = userRole === Role.nikita;
     const { tapCount } = await this.tapCache.addDelta(roundId, userId, isNikita);
@@ -57,6 +57,21 @@ export class TapsService {
 
   async syncRoundStats(roundId: string): Promise<void> {
     return this.tapsSyncService.syncRoundStats(roundId);
+  }
+
+  /**
+   * Get leaderboard for round (public method for RoundsService)
+   */
+  async getRoundLeaderboard(roundId: string, limit: number = 10): Promise<LeaderboardEntryDto[]> {
+    return this.buildLeaderboard(roundId, limit);
+  }
+
+  /**
+   * Check if round has cached data (active round)
+   */
+  async hasRoundInCache(roundId: string): Promise<boolean> {
+    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 1);
+    return leaderboardData.length > 0;
   }
 
   /**

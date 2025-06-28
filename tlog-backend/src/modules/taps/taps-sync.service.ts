@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
+import { PlayerStatsService } from '../rounds/player-stats.service';
 
 /**
  * Service responsible for data synchronization between Redis and PostgreSQL
@@ -13,6 +14,7 @@ export class TapsSyncService {
   constructor(
     private prisma: PrismaService,
     private tapCache: TapCacheService,
+    private playerStatsService: PlayerStatsService,
   ) {}
 
   /**
@@ -48,33 +50,9 @@ export class TapsSyncService {
     }
   }
 
-  /**
-   * Sync single user stats to database
-   */
   async syncSingleUserStats(roundId: string, userId: string): Promise<void> {
     try {
-      const counters = await this.tapCache.getCounters(roundId, userId);
-
-      if (counters.tapCount > 0 || counters.points > 0) {
-        await this.prisma.playerRoundStats.upsert({
-          where: {
-            roundId_userId: {
-              roundId,
-              userId,
-            },
-          },
-          update: {
-            taps: counters.tapCount,
-            points: counters.points,
-          },
-          create: {
-            userId,
-            roundId,
-            taps: counters.tapCount,
-            points: counters.points,
-          },
-        });
-      }
+      await this.playerStatsService.syncUserStats(roundId, userId);
     } catch (error) {
       this.logger.error(`Failed to sync stats for user ${userId}:`, error);
     }
@@ -85,15 +63,9 @@ export class TapsSyncService {
    */
   async syncRoundStats(roundId: string): Promise<void> {
     try {
+      await this.playerStatsService.syncRoundStats(roundId);
       const userIds = await this.getUserIdsFromLeaderboard(roundId);
-
-      if (userIds.length > 0) {
-        // Process in batches to avoid overwhelming DB
-        for (const userId of userIds) {
-          await this.syncSingleUserStats(roundId, userId);
-        }
-        this.logger.debug(`Synced stats for ${userIds.length} players in round ${roundId}`);
-      }
+      this.logger.debug(`Synced stats for ${userIds.length} players in round ${roundId}`);
     } catch (error) {
       this.logger.error(`Failed to sync stats for round ${roundId}`, error);
     }
