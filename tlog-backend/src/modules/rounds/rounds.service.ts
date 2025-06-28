@@ -86,34 +86,33 @@ export class RoundsService {
 
     const now = new Date();
     const isRoundEnd = now > round.endsAt;
-    const [playerPoints, totalPoints, leaderboard] = await Promise.all([
-      this.playerStatsService.getPlayerPoints(roundId, userId),
-      this.playerStatsService.getTotalPoints(roundId),
-      this.playerStatsService.getLeaderboard(roundId),
-    ]);
 
-    if (isRoundEnd) {
-      const hasRoundInCache = await this.checkRoundInCache(roundId);
-      if (hasRoundInCache) {
-        void this.playerStatsService.syncRoundStats(roundId);
-      }
+    let { playerPoints, totalPoints, leaderboard } =
+      await this.playerStatsService.getStatsFromCache(roundId, userId);
+
+    const hasRoundInCache = leaderboard.length > 0;
+    if (!hasRoundInCache) {
+      [playerPoints, totalPoints, leaderboard] = await Promise.all([
+        this.playerStatsService.getPlayerPoints(roundId, userId),
+        this.playerStatsService.getTotalPoints(roundId),
+        this.playerStatsService.getLeaderboard(roundId),
+      ]);
+    }
+
+    if (isRoundEnd && hasRoundInCache) {
+      void this.playerStatsService.syncUserStats(roundId, userId);
     }
 
     const winner: LeaderboardEntryDto | undefined = isRoundEnd ? leaderboard[0] : undefined;
 
     const roundDetails = new RoundDetailsDto(round);
     roundDetails.stats = new RoundStatsDto({
-      totalPoints: totalPoints,
+      totalPoints,
       currentUserPoints: playerPoints,
       winner,
     });
     roundDetails.leaderboard = leaderboard;
 
     return roundDetails;
-  }
-
-  private async checkRoundInCache(roundId: string): Promise<boolean> {
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 1);
-    return leaderboardData.length > 0;
   }
 }

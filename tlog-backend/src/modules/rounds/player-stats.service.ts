@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
 import { LeaderboardEntryDto } from '../rounds/dto';
+import { RoundStatsData } from './interfaces/round-stats-data.interface';
 
 @Injectable()
 export class PlayerStatsService {
@@ -10,29 +11,15 @@ export class PlayerStatsService {
     private readonly tapCache: TapCacheService,
   ) {}
 
-  private async checkRoundInCache(roundId: string): Promise<boolean> {
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 1);
-    return leaderboardData.length > 0;
-  }
-
   async getPlayerPoints(roundId: string, userId: string): Promise<number> {
-    let { points } = await this.tapCache.getCounters(roundId, userId);
-    if (!points) {
-      const playerStats = await this.prisma.playerRoundStats.findUnique({
-        where: { roundId_userId: { roundId, userId } },
-      });
-      points = playerStats?.points || 0;
-    }
+    const playerStats = await this.prisma.playerRoundStats.findUnique({
+      where: { roundId_userId: { roundId, userId } },
+    });
 
-    return points || 0;
+    return playerStats?.points || 0;
   }
 
   async getTotalPoints(roundId: string): Promise<number> {
-    const leaderboard = await this.buildLeaderboardFromCache(roundId, 100);
-    if (leaderboard && leaderboard.length > 0) {
-      return leaderboard.reduce((sum, entry) => sum + entry.points, 0);
-    }
-
     const aggregateResult = await this.prisma.playerRoundStats.aggregate({
       where: { roundId },
       _sum: { points: true },
@@ -42,11 +29,6 @@ export class PlayerStatsService {
   }
 
   async getLeaderboard(roundId: string): Promise<LeaderboardEntryDto[]> {
-    const leaderboars = this.buildLeaderboardFromCache(roundId, 10);
-    if (hasCache) {
-      return this.buildLeaderboardFromCache(roundId, 10);
-    }
-
     const topPlayers = await this.prisma.playerRoundStats.findMany({
       where: { roundId },
       orderBy: { points: 'desc' },
@@ -54,15 +36,57 @@ export class PlayerStatsService {
       include: { user: { select: { username: true } } },
     });
 
-    return topPlayers.map(entry => ({
-      username: entry.user.username,
-      points: entry.points,
-    }));
+    return topPlayers.map(entry => new LeaderboardEntryDto(entry.user.username, entry.points));
+  }
+
+  async getStatsFromCache(roundId: string, userId: string): Promise<RoundStatsData> {
+    const allLeaderboardData = await this.tapCache.getLeaderboard(roundId, -1);
+
+    let totalPoints = 0;
+    let playerPoints = 0;
+    const topEntries: { userId: string; points: number }[] = [];
+
+    for (let i = 0; i < allLeaderboardData.length; i += 2) {
+      const currentUserId = allLeaderboardData[i];
+      const points = parseInt(allLeaderboardData[i + 1]);
+
+      totalPoints += points;
+
+      if (currentUserId === userId) {
+        playerPoints = points;
+      }
+
+      if (topEntries.length < 10) {
+        topEntries.push({ userId: currentUserId, points });
+      }
+    }
+
+    const leaderboard = await this.buildLeaderboardWithUsernames(topEntries);
+
+    return { playerPoints, totalPoints, leaderboard };
+  }
+
+  private async buildLeaderboardWithUsernames(
+    topEntries: { userId: string; points: number }[],
+  ): Promise<LeaderboardEntryDto[]> {
+    const userIds = topEntries.map(entry => entry.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true },
+    });
+
+    const userMap = new Map(users.map(user => [user.id, user.username]));
+
+    return topEntries
+      .map(entry => {
+        const username = userMap.get(entry.userId);
+        return username ? new LeaderboardEntryDto(username, entry.points) : null;
+      })
+      .filter(entry => entry !== null);
   }
 
   async syncUserStats(roundId: string, userId: string): Promise<void> {
     const counters = await this.tapCache.getCounters(roundId, userId);
-
     if (counters.tapCount > 0 || counters.points > 0) {
       await this.prisma.playerRoundStats.upsert({
         where: {
@@ -91,7 +115,7 @@ export class PlayerStatsService {
   }
 
   private async getUserIdsFromLeaderboard(roundId: string): Promise<string[]> {
-    const leaderboardData = await this.tapCache.getLeaderboard(roundId, 100);
+    const leaderboardData = await this.tapCache.getLeaderboard(roundId, -1);
     const userIds: string[] = [];
 
     for (let i = 0; i < leaderboardData.length; i += 2) {
@@ -106,7 +130,7 @@ export class PlayerStatsService {
     limit: number,
   ): Promise<{ userId: string; points: number }[]> {
     const leaderboardData = await this.tapCache.getLeaderboard(roundId, limit);
-    const leaderboard: LeaderboardEntryDto[] = [];
+    const leaderboard: { userId: string; points: number }[] = [];
 
     for (let i = 0; i < leaderboardData.length; i += 2) {
       const userId = leaderboardData[i];

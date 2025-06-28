@@ -1,15 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { TapsService } from '../modules/taps/taps.service';
 import { RedisService } from '../cache/redis.service';
+import { PlayerStatsService } from '../modules/rounds/player-stats.service';
+import { TapsSyncService } from '../modules/taps/taps-sync.service';
 
 @Injectable()
 export class FlushWorker {
   private readonly logger = new Logger(FlushWorker.name);
 
   constructor(
-    private tapsService: TapsService,
+    private tapsSyncService: TapsSyncService,
     private redisService: RedisService,
+    private playerStatsService: PlayerStatsService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_SECONDS)
@@ -20,8 +22,8 @@ export class FlushWorker {
       for (const roundId of roundsWithData) {
         // Save checkpoints for all users in round and sync their stats
         await Promise.all([
-          this.tapsService.saveCheckpointRound(roundId, '30 seconds flush'),
-          this.tapsService.syncRoundStats(roundId),
+          this.tapsSyncService.saveCheckpointRound(roundId, '30 seconds flush'),
+          this.playerStatsService.syncRoundStats(roundId),
         ]);
       }
 
