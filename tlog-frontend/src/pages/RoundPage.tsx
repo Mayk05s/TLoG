@@ -21,6 +21,7 @@ import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
 import { GooseButton } from '../components/GooseButton';
 import { BotManager } from '../components/BotManager';
+import '../styles/main.scss';
 
 export function RoundPage() {
   const { id } = useParams<{ id: string }>();
@@ -121,8 +122,14 @@ export function RoundPage() {
       />
 
       <Container maxWidth="lg" sx={{ py: 2, pb: 20 }}>
-        {/* Заголовок раунда на всю ширину с кнопкой возврата */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 2, sm: 0 }
+        }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
             Round {round.id.slice(0, 8)}
           </Typography>
@@ -135,10 +142,10 @@ export function RoundPage() {
           </Button>
         </Box>
 
-        {/* Winner Display */}
         {isCompleted && winner && (
           <Paper
             elevation={4}
+            className="winner-banner"
             sx={{
               p: 2,
               mb: 3,
@@ -147,7 +154,6 @@ export function RoundPage() {
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
-              background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
               color: 'common.white',
               borderRadius: 2,
             }}
@@ -167,14 +173,21 @@ export function RoundPage() {
           </Paper>
         )}
 
-        <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', lg: 'row' } }}>
-          {/* Основной контент */}
+        <Box sx={{
+          display: 'flex',
+          gap: 3,
+          flexDirection: { xs: 'column', lg: 'row' }
+        }}>
           <Box sx={{ flex: 1 }}>
-            {/* Основная игровая карточка */}
             <Card sx={{ mb: 3 }}>
               <CardContent sx={{ p: 4 }}>
-                {/* Статус и таймер */}
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: 2,
+                  mb: 3
+                }}>
                   <Chip
                     label={roundWithStatus.status.charAt(0).toUpperCase() + roundWithStatus.status.slice(1)}
                     color={roundWithStatus.status === 'active' ? 'success' :
@@ -182,13 +195,12 @@ export function RoundPage() {
                     size="medium"
                   />
                   {roundWithStatus.timeLeft !== undefined && roundWithStatus.timeLeft > 0 && (
-                    <Typography variant="h4" sx={{ fontFamily: 'monospace', color: 'primary.main' }}>
+                    <Typography variant="h4" className="text-mono" sx={{ color: 'primary.main' }}>
                       {formatTimeLeft(roundWithStatus.timeLeft)}
                     </Typography>
                   )}
                 </Box>
 
-                {/* Счет пользователя - отдельный блок */}
                 <Box sx={{
                   textAlign: 'center',
                   mb: 3,
@@ -213,13 +225,11 @@ export function RoundPage() {
                   </Typography>
                 </Box>
 
-                {/* Игровое поле с гусем */}
                 <GooseButton
                   canTap={canTap}
                   onTap={() => tapMutation.mutate()}
                 />
 
-                {/* Информационные сообщения */}
                 {roundWithStatus.status === 'cooldown' && (
                   <Alert severity="warning" sx={{ mt: 2 }}>
                     Round starts in {formatTimeLeft(roundWithStatus.timeLeft || 0)}
@@ -254,7 +264,6 @@ export function RoundPage() {
             </Card>
           </Box>
 
-          {/* Лидерборд справа от центрального кон��ента */}
           <Box sx={{
             width: { xs: '100%', lg: '300px' },
             flexShrink: 0
@@ -318,7 +327,6 @@ export function RoundPage() {
           </Box>
         </Box>
 
-        {/* BotManager теперь фиксирован внизу экрана */}
         <BotManager
           roundId={id!}
           roundStatus={roundWithStatus.status}

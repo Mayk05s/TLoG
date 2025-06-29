@@ -92,16 +92,6 @@ export function LoginPage() {
               {loginMutation.isPending ? 'Connecting...' : 'Login'}
             </Button>
           </Box>
-
-          <Alert severity="info" sx={{ mt: 2 }}>
-            <Typography variant="body2">
-              ✅ React Query интегрирован<br/>
-              🔌 Подключение к API: http://localhost:3001<br/>
-              📍 Сейчас на: /login<br/>
-              {loginMutation.isPending && '⏳ Отправка запроса...'}
-              {error && '❌ Ошибка подключения к бэкенду'}
-            </Typography>
-          </Alert>
         </CardContent>
       </Card>
     </Container>

@@ -7,6 +7,7 @@ import { RoundsPage } from './pages/RoundsPage';
 import { RoundPage } from './pages/RoundPage';
 import { queryClient } from './lib/queryClient';
 import { theme } from './lib/theme';
+import './styles/main.scss';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('accessToken');
