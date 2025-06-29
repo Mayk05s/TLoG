@@ -11,7 +11,7 @@ export class RequestContextMiddleware implements NestMiddleware {
     // Check if the request already has an ID
     if (!req['id']) {
       const generatedId = 'req-' + randomUUID();
-      this.logger.warn(`Request ID not provided, generated new UUID: ${generatedId}`);
+      // this.logger.warn(`Request ID not provided, generated new UUID: ${generatedId}`);
       req['id'] = generatedId;
     }
 

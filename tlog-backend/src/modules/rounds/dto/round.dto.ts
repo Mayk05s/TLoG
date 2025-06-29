@@ -25,7 +25,7 @@ export class RoundDto {
 
   @Expose()
   get status(): RoundStatus {
-    const now = new Date().getTime();
+    const now = Date.now();
     if (now < this.startsAt) {
       return RoundStatus.UPCOMING;
     } else if (now >= this.startsAt && now <= this.endsAt) {

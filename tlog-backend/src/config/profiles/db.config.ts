@@ -6,6 +6,7 @@ export function buildDatabaseUrl() {
   const name = process.env.DB_NAME || 'tlog_db';
   const user = process.env.DB_USER;
   const password = process.env.DB_PASSWORD;
+  const logLevel = process.env.DATABASE_LOG_LEVEL;
 
   // Construct the DATABASE_URL from individual components
   const url = `postgres://${user}:${password}@${host}:${port}/${name}`;
@@ -17,6 +18,7 @@ export function buildDatabaseUrl() {
     database: name,
     username: user,
     password,
+    logLevel,
   };
 }
 

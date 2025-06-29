@@ -4,24 +4,47 @@ import { PrismaLogger } from '../logger/prisma-logger';
 import { ConfigService } from '../config/config.service';
 import { RequestContextStorage } from '../logger/request-context-storage';
 
+type PrismaLogLevel = 'query' | 'info' | 'warn' | 'error';
+
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
   private static connected = false;
   private static instance: PrismaService | null = null;
 
+  private static getLogConfig(
+    debugDb: string | PrismaLogLevel[] | undefined,
+  ): { level: PrismaLogLevel; emit: 'event' }[] {
+    const allLevels: PrismaLogLevel[] = ['query', 'info', 'warn', 'error'];
+
+    if (!debugDb) return [];
+
+    if (debugDb === 'all') {
+      return allLevels.map(level => ({ level, emit: 'event' }));
+    }
+
+    if (Array.isArray(debugDb)) {
+      return debugDb
+        .filter((lvl): lvl is PrismaLogLevel => allLevels.includes(lvl as PrismaLogLevel))
+        .map(level => ({ level, emit: 'event' }));
+    }
+
+    if (typeof debugDb === 'string' && allLevels.includes(debugDb as PrismaLogLevel)) {
+      return [{ level: debugDb as PrismaLogLevel, emit: 'event' }];
+    }
+
+    console.warn(`Invalid debugDb configuration: ${debugDb}. No logging will be used.`);
+    return [];
+  }
+
   constructor(
     configService: ConfigService,
     protected readonly prismaLogger: PrismaLogger,
   ) {
-    const { databaseUrl } = configService;
+    const { databaseUrl, databaseDebug } = configService;
     super({
       datasourceUrl: databaseUrl,
-      log: [
-        { level: 'query', emit: 'event' },
-        { level: 'error', emit: 'event' },
-        { level: 'warn', emit: 'event' },
-      ],
+      log: PrismaService.getLogConfig(databaseDebug),
     });
 
     if (PrismaService.instance) {

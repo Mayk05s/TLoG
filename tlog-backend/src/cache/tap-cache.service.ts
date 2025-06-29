@@ -12,36 +12,25 @@ export class TapCacheService implements OnModuleInit {
   constructor(private readonly redisService: RedisService) {}
 
   async onModuleInit() {
-    // Load tap_delta.lua script
     const scriptsPath = join(process.cwd(), 'src', 'cache', 'scripts');
     const tapDeltaLua = readFileSync(join(scriptsPath, 'tap_delta.lua'), 'utf8');
     this.tapDeltaSha = await this.redisService.scriptLoad(tapDeltaLua);
   }
 
-  /**
-   * Process tap with atomic scoring logic
-   * Returns both tap count and points earned
-   */
   async addDelta(
     roundId: string,
     userId: string,
     isNikita: boolean,
-    roundEndTimestamp?: number,
+    roundEndTimestamp: number,
   ): Promise<{ tapCount: number; points: number }> {
     const keys = [
-      RedisTapKeys.userTapsKey(roundId, userId), // tap counter
-      RedisTapKeys.userPointsKey(roundId, userId), // points counter
-      RedisTapKeys.leaderboardKey(roundId), // leaderboard
-      RedisTapKeys.activeRoundsKey(), // active rounds queue
+      RedisTapKeys.userTapsKey(roundId, userId),
+      RedisTapKeys.userPointsKey(roundId, userId),
+      RedisTapKeys.leaderboardKey(roundId),
+      RedisTapKeys.activeRoundsKey(),
     ];
 
-    const args = [userId, isNikita ? '1' : '0'];
-    if (roundEndTimestamp) {
-      args.push(Math.floor(roundEndTimestamp / 1000).toString());
-    } else {
-      args.push('0');
-    }
-    args.push(roundId); // Добавляем roundId как последний аргумент
+    const args = [userId, isNikita ? '1' : '0', roundEndTimestamp, roundId];
 
     const [tapCount, points] = (await this.redisService.evalsha(
       this.tapDeltaSha,
@@ -53,9 +42,6 @@ export class TapCacheService implements OnModuleInit {
     return { tapCount, points };
   }
 
-  /**
-   * Get current counters for a user in a round
-   */
   async getCounters(
     roundId: string,
     userId: string,
@@ -71,9 +57,6 @@ export class TapCacheService implements OnModuleInit {
     };
   }
 
-  /**
-   * Get leaderboard for a round
-   */
   async getLeaderboard(roundId: string, limit: number = 10): Promise<string[]> {
     if (limit === -1) {
       return this.redisService.zrevrange(RedisTapKeys.leaderboardKey(roundId), 0, -1, 'WITHSCORES');
@@ -87,10 +70,6 @@ export class TapCacheService implements OnModuleInit {
     );
   }
 
-  /**
-   * Получение раунда из Sorted Set для обработки воркером
-   * Берет раунд с наименьшим временем завершения (ZPOPMIN)
-   */
   async getRoundFromQueue(): Promise<{ roundId: string; endTime: number } | null> {
     const result = await this.redisService.getClient().zpopmin(RedisTapKeys.activeRoundsKey());
 
@@ -104,17 +83,11 @@ export class TapCacheService implements OnModuleInit {
     return null;
   }
 
-  /**
-   * Проверка, завершен ли раунд по времени
-   */
   async isRoundExpired(roundId: string, endTime: number): Promise<boolean> {
     const currentTime = Date.now();
     return currentTime > endTime;
   }
 
-  /**
-   * Удаление всех данных завершенного раунда из Redis
-   */
   async cleanupExpiredRound(roundId: string): Promise<void> {
     const pattern = `round:${roundId}:*`;
     const keys = await this.redisService.keys(pattern);

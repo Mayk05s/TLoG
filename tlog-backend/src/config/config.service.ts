@@ -8,12 +8,17 @@ export class ConfigService {
   get isDev(): boolean {
     return !!this.configService.get<boolean>('app.isDev');
   }
+
   get port(): number {
     return this.configService.get<number>('app.port') ?? 3000;
   }
 
   get databaseUrl(): string {
     return this.configService.get<string>('database.url') ?? '';
+  }
+
+  get databaseDebug(): string {
+    return this.configService.get<string>('database.logLevel') ?? '';
   }
 
   get roundDuration(): number {

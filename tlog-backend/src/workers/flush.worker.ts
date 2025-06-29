@@ -10,7 +10,6 @@ export class FlushWorker {
   private readonly logger = new Logger(FlushWorker.name);
   private readonly MAX_RETRY_ATTEMPTS = 3;
   private readonly RETRY_DELAY_BASE = 1000;
-  private readonly BATCH_SIZE = 5;
 
   constructor(
     private readonly tapCache: TapCacheService,
@@ -21,15 +20,16 @@ export class FlushWorker {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async processActiveRounds(): Promise<void> {
     try {
+      const BATCH_SIZE = 5;
       const processedRounds: Array<{ roundId: string; endTime: number }> = [];
 
-      // Берем батч раундов из Sorted Set (ZPOPMIN - берет раунды с наименьшим временем завершения)
-      for (let i = 0; i < this.BATCH_SIZE; i++) {
+      // Take batch of rounds from Sorted Set (ZPOPMIN - takes rounds with earliest endTime)
+      for (let i = 0; i < BATCH_SIZE; i++) {
         const round = await this.tapCache.getRoundFromQueue();
         if (round) {
           processedRounds.push(round);
         } else {
-          break; // Sorted Set пуст
+          break; // Sorted Set is empty
         }
       }
 
@@ -59,26 +59,26 @@ export class FlushWorker {
 
   private async processRoundWithRetry(roundId: string, endTime: number): Promise<void> {
     try {
+      // СНАЧАЛА синхронизируем данные, независимо от истечения
       await this.retryWithBackoff(
         () => this.playerStats.syncRoundStats(roundId),
         this.MAX_RETRY_ATTEMPTS,
       );
 
       this.logger.debug(`Successfully synced round ${roundId}`);
-      // Проверяем, завершен ли раунд
-      const isExpired = await this.tapCache.isRoundExpired(roundId, endTime);
 
+      // ТОЛЬКО ПОСЛЕ синхронизации проверяем истечение и очищаем
+      const isExpired = await this.tapCache.isRoundExpired(roundId, endTime);
       if (isExpired) {
-        this.logger.log(`Round ${roundId} has expired, cleaning up...`);
+        this.logger.log(`Round ${roundId} has expired, cleaning up after sync...`);
         await this.tapCache.cleanupExpiredRound(roundId);
-        return;
       }
     } catch (error) {
       this.logger.error(
         `Failed to sync round ${roundId} after ${this.MAX_RETRY_ATTEMPTS} attempts:`,
         error,
       );
-      // В случае ошибки возвращаем раунд обратно в Sorted Set
+      // Return round back to Sorted Set on error
       await this.redisService.getClient().zadd(RedisTapKeys.activeRoundsKey(), endTime, roundId);
       this.logger.warn(`Returned round ${roundId} back to active rounds sorted set due to error`);
     }

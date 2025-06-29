@@ -6,6 +6,7 @@ export const createPinoConfig = (config: ConfigService): Params => {
 
   return {
     pinoHttp: {
+      autoLogging: false,
       level: isProd ? 'info' : 'debug',
       transport: !isProd
         ? {
