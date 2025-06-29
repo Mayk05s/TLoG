@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Box,
@@ -17,7 +16,8 @@ import {
   Typography,
 } from '@mui/material';
 import { Add, ExpandLess, ExpandMore, Refresh } from '@mui/icons-material';
-import { type Round, roundsApi } from '../api';
+import { type Round } from '../store/types';
+import { useCreateRoundMutation, useGetRoundsQuery } from '../store/api';
 import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
 
@@ -27,25 +27,32 @@ export function RoundsPage() {
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [showCompleted, setShowCompleted] = useState(false);
 
-  const { data: rounds, isLoading, error, refetch } = useQuery<Round[], Error>({
-    queryKey: ['rounds'],
-    queryFn: roundsApi.getRounds,
-    refetchInterval: 5000,
+  const {
+    data: rounds,
+    isLoading,
+    error,
+    refetch
+  } = useGetRoundsQuery(undefined, {
+    pollingInterval: 5000,
   });
 
   useEffect(() => {
-    if (error && error.message.includes('401')) {
+    if (error && 'status' in error && error.status === 401) {
       localStorage.clear();
       navigate('/login');
     }
   }, [error, navigate]);
 
-  const createRoundMutation = useMutation({
-    mutationFn: roundsApi.createRound,
-    onSuccess: (newRound) => {
+  const [createRound, { isLoading: isCreating }] = useCreateRoundMutation();
+
+  const handleCreateRound = async () => {
+    try {
+      const newRound = await createRound().unwrap();
       navigate(`/rounds/${newRound.id}`);
-    },
-  });
+    } catch (error) {
+      console.error('Failed to create round:', error);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -57,33 +64,6 @@ export function RoundsPage() {
     navigate('/login');
   };
 
-  const getStatusText = (round: Round): string => {
-    const roundWithStatus = calculateRoundStatus(round, currentTime);
-    switch (roundWithStatus.status) {
-      case 'cooldown':
-        return `Starts in ${formatTimeLeft(roundWithStatus.timeLeft || 0)}`;
-      case 'active':
-        return `${formatTimeLeft(roundWithStatus.timeLeft || 0)} left`;
-      case 'completed':
-        return 'Completed';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'cooldown':
-        return 'warning';
-      case 'completed':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
   const sortRoundsByStatus = (rounds: Round[]) => {
     const roundsWithStatus = rounds.map(round => ({
       ...round,
@@ -91,7 +71,7 @@ export function RoundsPage() {
     }));
 
     return roundsWithStatus.sort((a, b) => {
-      const statusOrder = { active: 0, cooldown: 1, completed: 2 };
+      const statusOrder: Record<string, number> = { active: 0, cooldown: 1, completed: 2 };
       const aOrder = statusOrder[a.calculatedStatus.status] ?? 3;
       const bOrder = statusOrder[b.calculatedStatus.status] ?? 3;
 
@@ -102,10 +82,10 @@ export function RoundsPage() {
 
   const groupRoundsByStatus = (rounds: Round[]) => {
     const sortedRounds = sortRoundsByStatus(rounds);
-    const groups = {
-      active: [] as Round[],
-      cooldown: [] as Round[],
-      completed: [] as Round[],
+    const groups: Record<string, Round[]> = {
+      active: [],
+      cooldown: [],
+      completed: [],
     };
 
     sortedRounds.forEach(round => {
@@ -115,7 +95,11 @@ export function RoundsPage() {
       }
     });
 
-    return groups;
+    return {
+      active: groups.active,
+      cooldown: groups.cooldown,
+      completed: groups.completed,
+    };
   };
 
   if (isLoading) {
@@ -132,6 +116,12 @@ export function RoundsPage() {
   }
 
   if (error) {
+    const errorMessage = 'data' in error && error.data
+      ? String(error.data)
+      : 'status' in error
+        ? `Error ${error.status}`
+        : 'Failed to connect to backend';
+
     return (
       <Container maxWidth="md" sx={{ mt: 4 }}>
         <Alert
@@ -142,7 +132,7 @@ export function RoundsPage() {
             </Button>
           }
         >
-          Failed to connect to backend: {error.message}
+          {errorMessage}
         </Alert>
       </Container>
     );
@@ -151,7 +141,6 @@ export function RoundsPage() {
   return (
     <>
       <AppHeader
-        title="Game Rounds"
         username={user.username}
         role={user.role}
         onLogout={handleLogout}
@@ -165,11 +154,11 @@ export function RoundsPage() {
           {user.role === 'admin' && (
             <Button
               variant="contained"
-              startIcon={createRoundMutation.isPending ? <CircularProgress size={20} /> : <Add />}
-              onClick={() => createRoundMutation.mutate()}
-              disabled={createRoundMutation.isPending}
+              startIcon={isCreating ? <CircularProgress size={20} /> : <Add />}
+              onClick={handleCreateRound}
+              disabled={isCreating}
             >
-              {createRoundMutation.isPending ? 'Creating...' : 'Create Round'}
+              {isCreating ? 'Creating...' : 'Create Round'}
             </Button>
           )}
         </Box>
@@ -186,6 +175,7 @@ export function RoundsPage() {
         ) : (
           <>
             {(() => {
+              if (!rounds) return null;
               const groupedRounds = groupRoundsByStatus(rounds);
 
               return (
@@ -197,7 +187,7 @@ export function RoundsPage() {
                       </Typography>
                       <Grid container spacing={2}>
                         {groupedRounds.active.map((round) => (
-                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                          <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={round.id}>
                             <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
                           </Grid>
                         ))}
@@ -212,7 +202,7 @@ export function RoundsPage() {
                       </Typography>
                       <Grid container spacing={2}>
                         {groupedRounds.cooldown.map((round) => (
-                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                          <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={round.id}>
                             <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
                           </Grid>
                         ))}
@@ -259,7 +249,7 @@ export function RoundsPage() {
                       <Collapse in={showCompleted}>
                         <Grid container spacing={2}>
                           {groupedRounds.completed.map((round) => (
-                            <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                            <Grid size={{ xs: 12, sm: 6, lg: 3 }} key={round.id}>
                               <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
                             </Grid>
                           ))}

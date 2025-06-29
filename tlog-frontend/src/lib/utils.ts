@@ -1,4 +1,4 @@
-import type { Round, RoundWithStatus } from '../api/types';
+import type { Round, RoundWithStatus } from '../store/types';
 
 export const calculateRoundStatus = (round: Round, currentTime: number): RoundWithStatus => {
   const now = currentTime;

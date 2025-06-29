@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
 import {
   Alert,
   Box,
@@ -24,7 +23,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Cancel, CheckCircle, Visibility, VisibilityOff } from '@mui/icons-material';
-import { authApi } from '../api';
+import { useLoginMutation, useSignupMutation } from '../store/api';
 
 interface PasswordRule {
   text: string;
@@ -63,39 +62,40 @@ export function LoginPage() {
     }
   }, [password, confirmPassword, needsConfirmPassword]);
 
-  const loginMutation = useMutation({
-    mutationFn: () => authApi.login(username, password),
-    onSuccess: (data) => {
+  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [signup, { isLoading: isSigningUp }] = useSignupMutation();
+
+  const handleLogin = async () => {
+    try {
+      const data = await login({ username, password }).unwrap();
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/rounds');
-    },
-    onError: (error: Error) => {
-      if (error.message.includes('404') || error.message.includes('User not found')) {
+    } catch (error: any) {
+      if (error.status === 404 || (error.data && error.data.message?.includes('User not found'))) {
         setPendingUsername(username);
         setShowCreateDialog(true);
         setError('');
-      } else if (error.message.includes('401') || error.message.includes('Invalid credentials')) {
+      } else if (error.status === 401 || (error.data && error.data.message?.includes('Invalid credentials'))) {
         setError('Incorrect password');
       } else {
-        setError(error.message);
+        setError(error.data?.message || 'Login failed');
       }
-    },
-  });
+    }
+  };
 
-  const signupMutation = useMutation({
-    mutationFn: () => authApi.signup({ username, password }),
-    onSuccess: (data) => {
+  const handleSignup = async () => {
+    try {
+      const data = await signup({ username, password }).unwrap();
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/rounds');
-    },
-    onError: (error: Error) => {
-      setError(error.message);
-    },
-  });
+    } catch (error: any) {
+      setError(error.data?.message || 'Signup failed');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,9 +103,9 @@ export function LoginPage() {
 
     if (isCreateMode) {
       if (!canCreateUser) return;
-      signupMutation.mutate();
+      await handleSignup();
     } else {
-      loginMutation.mutate();
+      await handleLogin();
     }
   };
 
@@ -141,7 +141,7 @@ export function LoginPage() {
     );
   };
 
-  const isLoading = loginMutation.isPending || signupMutation.isPending;
+  const isLoading = isLoggingIn || isSigningUp;
 
   return (
     <Container maxWidth="sm" sx={{

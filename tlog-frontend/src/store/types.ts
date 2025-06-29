@@ -15,11 +15,15 @@ export interface Round {
   endsAt: number;
 }
 
-export interface RoundDetailsResponse {
-  id: string;
-  createdAt: number;
-  startsAt: number;
-  endsAt: number;
+export interface RoundStatsDto {
+  totalPoints: number;
+  currentUserPoints: number;
+  winner?: LeaderboardEntry;
+}
+
+export interface RoundDetailsResponse extends Round {
+  stats?: RoundStatsDto;
+  leaderboard?: LeaderboardEntry[];
 }
 
 export interface StatsResponse {
@@ -40,3 +44,4 @@ export interface RoundWithStatus extends Round {
   status: 'cooldown' | 'active' | 'completed';
   timeLeft?: number;
 }
+

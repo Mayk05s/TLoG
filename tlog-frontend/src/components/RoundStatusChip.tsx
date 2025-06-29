@@ -1,6 +1,6 @@
 import { Chip } from '@mui/material';
 import { PlayArrow, Stop } from '@mui/icons-material';
-import type { RoundWithStatus } from '../api/types';
+import type { RoundWithStatus } from '../store/types';
 import { formatTimeLeft } from '../lib/utils';
 
 interface RoundStatusChipProps {

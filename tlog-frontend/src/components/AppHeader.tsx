@@ -1,7 +1,6 @@
 import { Box, Button, Container, Typography } from '@mui/material';
 
 interface AppHeaderProps {
-  title: string;
   username?: string;
   role?: string;
   onLogout?: () => void;
@@ -9,7 +8,7 @@ interface AppHeaderProps {
   backButtonText?: string;
 }
 
-export function AppHeader({ title, username, role, onLogout, onBack, backButtonText }: AppHeaderProps) {
+export function AppHeader({ username, role, onLogout, onBack, backButtonText }: AppHeaderProps) {
   return (
     <Box sx={{
       bgcolor: 'background.paper',

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Alert,
   Box,
@@ -16,7 +15,7 @@ import {
   Paper,
   Typography,
 } from '@mui/material';
-import { type RoundDetailsResponse, roundsApi, type StatsResponse, tapsApi } from '../api';
+import { useGetRoundQuery, useSubmitTapMutation } from '../store/api';
 import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
 import { GooseButton } from '../components/GooseButton';
@@ -27,51 +26,49 @@ export function RoundPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [isRoundEnded, setIsRoundEnded] = useState(false);
 
-  const { data: round, isLoading: roundLoading, error: roundError } = useQuery<RoundDetailsResponse, Error>({
-    queryKey: ['round', id],
-    queryFn: () => roundsApi.getRound(id!),
-    refetchInterval: 2000,
-    enabled: !!id,
+  const {
+    data: roundData,
+    isLoading,
+    error,
+    refetch: refetchStats
+  } = useGetRoundQuery(id!, {
+    pollingInterval: isRoundEnded ? 0 : 2000,
+    skip: !id,
   });
 
-  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useQuery<StatsResponse, Error>({
-    queryKey: ['stats', id],
-    queryFn: () => roundsApi.getStats(id!),
-    refetchInterval: 2000,
-    enabled: !!id,
-  });
+  const [submitTap] = useSubmitTapMutation();
 
-  const tapMutation = useMutation({
-    mutationFn: () => tapsApi.submitTap(id!),
-    retry: 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
-    onSuccess: () => {
-      refetchStats();
-    },
-    onError: (error) => {
-      console.warn('Tap failed after retries:', error);
-    },
-  });
+  const handleTap = async () => {
+    try {
+      await submitTap(id!).unwrap();
+    } catch (error) {
+      console.warn('Tap failed:', error);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (roundData) {
+      const roundEnded = currentTime > roundData.endsAt + 2000;
+      setIsRoundEnded(roundEnded);
+    }
+  }, [roundData, currentTime]);
+
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
   };
 
-  const isLoading = roundLoading || statsLoading;
-  const error = roundError || statsError;
-
   if (isLoading) {
     return (
       <>
         <AppHeader
-          title="Game Rounds"
           username={user.username}
           role={user.role}
           onLogout={handleLogout}
@@ -88,11 +85,10 @@ export function RoundPage() {
     );
   }
 
-  if (error || !round || !stats) {
+  if (error || !roundData) {
     return (
       <>
         <AppHeader
-          title="Game Rounds"
           username={user.username}
           role={user.role}
           onLogout={handleLogout}
@@ -106,15 +102,14 @@ export function RoundPage() {
     );
   }
 
-  const roundWithStatus = calculateRoundStatus(round, currentTime);
+  const roundWithStatus = calculateRoundStatus(roundData, currentTime);
   const canTap = roundWithStatus.status === 'active' && user.role !== 'nikita';
   const isCompleted = roundWithStatus.status === 'completed';
-  const winner = isCompleted && stats.leaderboard.length > 0 ? stats.leaderboard[0] : null;
+  const winner = isCompleted && roundData.leaderboard && roundData.leaderboard.length > 0 ? roundData.leaderboard[0] : null;
 
   return (
     <>
       <AppHeader
-        title="Game Rounds"
         username={user.username}
         role={user.role}
         onLogout={handleLogout}
@@ -130,7 +125,7 @@ export function RoundPage() {
           gap: { xs: 2, sm: 0 }
         }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-            Round {round.id.slice(0, 8)}
+            Round {roundData.id.slice(0, 8)}
           </Typography>
           <Button
             variant="outlined"
@@ -217,16 +212,16 @@ export function RoundPage() {
                     color: 'text.primary',
                     lineHeight: 1
                   }}>
-                    {stats.stats.currentUserPoints}
+                    {roundData.stats?.currentUserPoints || 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Total in round: {stats.stats.totalPoints}
+                    Total in round: {roundData.stats?.totalPoints || 0}
                   </Typography>
                 </Box>
 
                 <GooseButton
                   canTap={canTap}
-                  onTap={() => tapMutation.mutate()}
+                  onTap={handleTap}
                 />
 
                 {roundWithStatus.status === 'cooldown' && (
@@ -245,10 +240,10 @@ export function RoundPage() {
                         Final Results
                       </Typography>
                       <Typography variant="body1">
-                        Total points scored: {stats.stats.totalPoints}
+                        Total points scored: {roundData.stats?.totalPoints || 0}
                       </Typography>
                       <Typography variant="body1">
-                        Your final score: {stats.stats.currentUserPoints} points
+                        Your final score: {roundData.stats?.currentUserPoints || 0} points
                       </Typography>
                     </Paper>
                   </Box>
@@ -273,7 +268,7 @@ export function RoundPage() {
                   🏆 Leaderboard
                 </Typography>
 
-                {stats.leaderboard.length === 0 ? (
+                {!roundData.leaderboard || roundData.leaderboard.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
                     <Typography variant="body1" color="text.secondary">
                       No players yet
@@ -281,7 +276,7 @@ export function RoundPage() {
                   </Box>
                 ) : (
                   <List dense>
-                    {stats.leaderboard.map((entry, index) => (
+                    {roundData.leaderboard.map((entry, index) => (
                       <ListItem
                         key={entry.username}
                         sx={{
@@ -329,7 +324,7 @@ export function RoundPage() {
         <BotManager
           roundId={id!}
           roundStatus={roundWithStatus.status}
-          onStatsUpdate={refetchStats}
+          onStatsUpdate={() => refetchStats()}
         />
       </Container>
     </>

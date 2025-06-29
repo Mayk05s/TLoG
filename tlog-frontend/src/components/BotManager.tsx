@@ -14,7 +14,8 @@ import {
   Typography,
 } from '@mui/material';
 import { Close, ExpandLess, ExpandMore, Pause, PlayArrow } from '@mui/icons-material';
-import { API_BASE_URL, authApi } from '../api';
+import { API_BASE_URL } from '../store/config';
+import { useLoginMutation, useSignupMutation } from '../store/api';
 import { BOT_BEHAVIOR, BOT_SPEED_PRESETS, BOTS_CONFIG } from '../config/bots.config';
 
 type SpeedPreset = keyof typeof BOT_SPEED_PRESETS;
@@ -43,16 +44,18 @@ interface BotManagerProps {
 }
 
 const speedPresetKeys = Object.keys(BOT_SPEED_PRESETS) as SpeedPreset[];
-const speedPresetNames = speedPresetKeys.map(key => BOT_SPEED_PRESETS[key].name);
 
 export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerProps) {
   const [activeBots, setActiveBots] = useState<BotStatus[]>([]);
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [isExpanded, setIsExpanded] = useState(true);
   const [isAddingBot, setIsAddingBot] = useState(false);
-  const [selectedSpeedIndex, setSelectedSpeedIndex] = useState(1); // normal по умолчанию
+  const [selectedSpeedIndex, setSelectedSpeedIndex] = useState(1);
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const leaderboardIntervalRef = useRef<number | undefined>(undefined);
+
+  const [login] = useLoginMutation();
+  const [signup] = useSignupMutation();
 
   const selectedSpeed = speedPresetKeys[selectedSpeedIndex];
 
@@ -84,7 +87,7 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
 
   const authenticateBot = async (botConfig: typeof BOTS_CONFIG[0]): Promise<string | null> => {
     try {
-      const response = await authApi.login(botConfig.username, botConfig.password);
+      const response = await login({ username: botConfig.username, password: botConfig.password }).unwrap();
       return response.accessToken;
     } catch (error) {
       console.warn(`Bot ${botConfig.username} auth failed:`, error);
@@ -93,20 +96,7 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   };
 
   const registerBot = async (botConfig: typeof BOTS_CONFIG[0]): Promise<void> => {
-    const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        username: botConfig.username,
-        password: botConfig.password,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Registration failed: ${response.status}`);
-    }
+    await signup({ username: botConfig.username, password: botConfig.password }).unwrap();
   };
 
   const updateBotStatus = (username: string, updates: Partial<BotStatus>) => {
