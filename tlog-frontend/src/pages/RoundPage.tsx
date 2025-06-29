@@ -21,7 +21,6 @@ import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
 import { GooseButton } from '../components/GooseButton';
 import { BotManager } from '../components/BotManager';
-import '../styles/main.scss';
 
 export function RoundPage() {
   const { id } = useParams<{ id: string }>();
@@ -145,7 +144,6 @@ export function RoundPage() {
         {isCompleted && winner && (
           <Paper
             elevation={4}
-            className="winner-banner"
             sx={{
               p: 2,
               mb: 3,
@@ -154,6 +152,7 @@ export function RoundPage() {
               justifyContent: 'space-between',
               alignItems: 'center',
               gap: 2,
+              background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
               color: 'common.white',
               borderRadius: 2,
             }}

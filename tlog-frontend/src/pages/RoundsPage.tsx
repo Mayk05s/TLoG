@@ -9,21 +9,23 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Collapse,
   Container,
   Grid,
+  IconButton,
   Paper,
   Typography,
 } from '@mui/material';
-import { Add, Refresh } from '@mui/icons-material';
+import { Add, ExpandLess, ExpandMore, Refresh } from '@mui/icons-material';
 import { type Round, roundsApi } from '../api';
 import { calculateRoundStatus, formatTimeLeft } from '../lib/utils';
 import { AppHeader } from '../components/AppHeader';
-import '../styles/main.scss';
 
 export function RoundsPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [currentTime, setCurrentTime] = useState(Date.now());
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const { data: rounds, isLoading, error, refetch } = useQuery<Round[], Error>({
     queryKey: ['rounds'],
@@ -40,7 +42,9 @@ export function RoundsPage() {
 
   const createRoundMutation = useMutation({
     mutationFn: roundsApi.createRound,
-    onSuccess: () => refetch(),
+    onSuccess: (newRound) => {
+      navigate(`/rounds/${newRound.id}`);
+    },
   });
 
   useEffect(() => {
@@ -218,16 +222,49 @@ export function RoundsPage() {
 
                   {groupedRounds.completed.length > 0 && (
                     <Box>
-                      <Typography variant="h6" sx={{ mb: 2, color: 'text.secondary', fontWeight: 600 }}>
-                        ⚪ Completed Rounds ({groupedRounds.completed.length})
-                      </Typography>
-                      <Grid container spacing={2}>
-                        {groupedRounds.completed.map((round) => (
-                          <Grid item xs={12} sm={6} lg={3} key={round.id}>
-                            <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
-                          </Grid>
-                        ))}
-                      </Grid>
+                      <Paper
+                        elevation={1}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          p: 2,
+                          mb: 2,
+                          cursor: 'pointer',
+                          bgcolor: showCompleted ? 'action.selected' : 'background.paper',
+                          border: 1,
+                          borderColor: 'divider',
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                            borderColor: 'primary.main',
+                            transform: 'translateY(-1px)',
+                            boxShadow: 2,
+                          },
+                          transition: 'all 0.2s ease-in-out',
+                        }}
+                        onClick={() => setShowCompleted(prev => !prev)}
+                      >
+                        <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                          ⚪ Completed Rounds ({groupedRounds.completed.length})
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          sx={{ ml: 1 }}
+                        >
+                          {showCompleted ? <ExpandLess /> : <ExpandMore />}
+                        </IconButton>
+                      </Paper>
+
+                      <Collapse in={showCompleted}>
+                        <Grid container spacing={2}>
+                          {groupedRounds.completed.map((round) => (
+                            <Grid item xs={12} sm={6} lg={3} key={round.id}>
+                              <RoundCard round={round} currentTime={currentTime} navigate={navigate} />
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </Collapse>
                     </Box>
                   )}
                 </>
