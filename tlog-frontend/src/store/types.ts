@@ -13,6 +13,7 @@ export interface Round {
   createdAt: number;
   startsAt: number;
   endsAt: number;
+  status: 'cooldown' | 'active' | 'completed';
 }
 
 export interface RoundStatsDto {
@@ -25,23 +26,11 @@ export interface RoundDetailsResponse extends Round {
   stats?: RoundStatsDto;
   leaderboard?: LeaderboardEntry[];
 }
-
-export interface StatsResponse {
-  round: Round;
-  stats: {
-    totalPoints: number;
-    currentUserPoints: number;
-  };
-  leaderboard: LeaderboardEntry[];
-}
-
 export interface LeaderboardEntry {
   username: string;
   points: number;
 }
 
 export interface RoundWithStatus extends Round {
-  status: 'cooldown' | 'active' | 'completed';
   timeLeft?: number;
 }
-

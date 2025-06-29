@@ -105,7 +105,7 @@ export function RoundPage() {
   const roundWithStatus = calculateRoundStatus(roundData, currentTime);
   const canTap = roundWithStatus.status === 'active' && user.role !== 'nikita';
   const isCompleted = roundWithStatus.status === 'completed';
-  const winner = isCompleted && roundData.leaderboard && roundData.leaderboard.length > 0 ? roundData.leaderboard[0] : null;
+  const winner = isCompleted && roundData?.stats?.winner ? roundData.stats.winner : null;
 
   return (
     <>
