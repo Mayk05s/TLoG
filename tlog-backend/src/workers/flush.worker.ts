@@ -23,7 +23,7 @@ export class FlushWorker {
       const BATCH_SIZE = 5;
       const processedRounds: Array<{ roundId: string; endTime: number }> = [];
 
-      // Take batch of rounds from Sorted Set (ZPOPMIN - takes rounds with earliest endTime)
+      // Take batch of rounds from Sorted Set (ZPOPMIN - atomic operation, no race conditions)
       for (let i = 0; i < BATCH_SIZE; i++) {
         const round = await this.tapCache.getRoundFromQueue();
         if (round) {
@@ -67,7 +67,7 @@ export class FlushWorker {
 
       this.logger.debug(`Successfully synced round ${roundId}`);
 
-      // ТОЛЬКО ПОСЛЕ синхронизации проверяем истечение и очищаем
+      // Check expiration and cleanup after successful sync
       const isExpired = await this.tapCache.isRoundExpired(roundId, endTime);
       if (isExpired) {
         this.logger.log(`Round ${roundId} has expired, cleaning up after sync...`);

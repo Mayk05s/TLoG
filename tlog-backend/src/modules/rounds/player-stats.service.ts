@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { TapCacheService } from '../../cache/tap-cache.service';
 import { LeaderboardEntryDto } from '../rounds/dto';
 import { RoundStatsData } from './interfaces/round-stats-data.interface';
+import { validate as isValidUUID } from 'uuid';
 
 @Injectable()
 export class PlayerStatsService {
@@ -52,6 +53,11 @@ export class PlayerStatsService {
       const currentUserId = allLeaderboardData[i];
       const points = parseInt(allLeaderboardData[i + 1]);
 
+      if (!isValidUUID(currentUserId)) {
+        this.logger.warn(`Skipping invalid UUID from Redis leaderboard: ${currentUserId}`);
+        continue;
+      }
+
       totalPoints += points;
 
       if (currentUserId === userId) {
@@ -92,10 +98,20 @@ export class PlayerStatsService {
 
     for (let i = 0; i < allLeaderboardData.length; i += 2) {
       const userId = allLeaderboardData[i];
-      userIds.push(userId);
+      if (isValidUUID(userId)) {
+        userIds.push(userId);
+      } else {
+        this.logger.warn(`Skipping invalid UUID in syncRoundStats: ${userId}`);
+      }
+    }
 
+    if (userIds.length === 0) {
+      this.logger.log(`No user IDs found for round ${roundId}`);
+      return;
+    }
+
+    for (const userId of userIds) {
       const { points, tapCount } = await this.tapCache.getCounters(roundId, userId);
-
       userStats.set(userId, { points, tapCount });
     }
 
