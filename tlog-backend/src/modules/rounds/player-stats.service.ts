@@ -113,20 +113,11 @@ export class PlayerStatsService {
 
     const userMap = new Map(users.map(user => [user.id, user.username]));
 
-    const leaderboard: LeaderboardEntryDto[] = topEntries
+    return topEntries
       .map(entry => {
         const username = userMap.get(entry.userId);
         return username ? new LeaderboardEntryDto(username, entry.points) : null;
       })
       .filter(entry => entry !== null);
-    console.log('leaderboard', leaderboard);
-    return leaderboard;
   }
-
-  // TODO: Implement comprehensive sync strategy
-  // Current approach: cache-first until round ends, then sync to DB
-  // Future considerations:
-  // - Periodic background sync for data safety
-  // - Recovery mechanisms for Redis failures
-  // - Conflict resolution for concurrent updates
 }

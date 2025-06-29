@@ -135,6 +135,38 @@ export function RoundPage() {
           </Button>
         </Box>
 
+        {/* Winner Display */}
+        {isCompleted && winner && (
+          <Paper
+            elevation={4}
+            sx={{
+              p: 2,
+              mb: 3,
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 2,
+              background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
+              color: 'common.white',
+              borderRadius: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              🏆 Round Champion
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Typography variant="h5" component="span" sx={{ fontWeight: 'bold' }}>
+                {winner.username}
+              </Typography>
+              <Typography component="span" sx={{ opacity: 0.9 }}>
+                with
+              </Typography>
+              <Chip label={`${winner.points} points`} color="secondary" sx={{ fontWeight: 'bold' }} />
+            </Box>
+          </Paper>
+        )}
+
         <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', lg: 'row' } }}>
           {/* Основной контент */}
           <Box sx={{ flex: 1 }}>
@@ -198,7 +230,6 @@ export function RoundPage() {
                   <Box sx={{ mt: 2 }}>
                     <Alert severity="info" sx={{ mb: 2 }}>
                       Round completed!
-                      {winner && ` 🏆 Winner: ${winner.username} with ${winner.points} points`}
                     </Alert>
                     <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                       <Typography variant="h6" gutterBottom>

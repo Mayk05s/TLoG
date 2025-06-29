@@ -48,7 +48,7 @@ describe('Enhanced Taps System (e2e)', () => {
       await prisma.round.delete({ where: { id: roundId } });
 
       // Clean up Redis data
-      await tapCache.clearRoundData(roundId);
+      // await tapCache.clearRoundData(roundId);
     }
     // Add delay to avoid rate limiting
     await new Promise(resolve => setTimeout(resolve, 200));
