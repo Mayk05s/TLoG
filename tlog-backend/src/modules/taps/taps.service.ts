@@ -16,7 +16,7 @@ export class TapsService {
   ) {}
 
   async processTap(roundId: string, userId: string, userRole: Role): Promise<TapResponseDto> {
-    const round: Round = await this.roundsService.findOne(roundId);
+    const round: Round = await this.roundsService.getActiveRoundById(roundId);
 
     const isNikita = userRole === Role.nikita;
     await this.tapCache.addDelta(roundId, userId, isNikita, round.endsAt.getTime());

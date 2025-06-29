@@ -55,13 +55,14 @@ export class RoundsService {
     return round;
   }
 
-  async isRoundActive(roundId: string): Promise<void> {
+  async getActiveRoundById(roundId: string): Promise<Round> {
     const round: Round = await this.findOne(roundId);
 
     const now = new Date();
     if (now < round.startsAt || now > round.endsAt) {
       throw new ConflictException('Round is not active');
     }
+    return round;
   }
 
   async create(): Promise<RoundDto> {
