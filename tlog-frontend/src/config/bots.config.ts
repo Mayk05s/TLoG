@@ -164,27 +164,27 @@ export const BOTS_CONFIG = [
 export const BOT_SPEED_PRESETS = {
   slow: {
     name: 'Slow',
-    minInterval: 2000,
-    maxInterval: 5000,
-    tapChance: 0.4
-  },
-  normal: {
-    name: 'Normal',
-    minInterval: 1000,
-    maxInterval: 3000,
-    tapChance: 0.6
-  },
-  fast: {
-    name: 'Fast',
     minInterval: 500,
     maxInterval: 1500,
     tapChance: 0.8
   },
-  ultra: {
-    name: 'Ultra',
+  normal: {
+    name: 'Normal',
     minInterval: 200,
     maxInterval: 800,
     tapChance: 0.9
+  },
+  fast: {
+    name: 'Fast',
+    minInterval: 100,
+    maxInterval: 400,
+    tapChance: 0.98
+  },
+  ultra: {
+    name: 'Ultra',
+    minInterval: 50,
+    maxInterval: 200,
+    tapChance: 1
   }
 };
 
