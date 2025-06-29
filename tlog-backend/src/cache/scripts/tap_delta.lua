@@ -1,9 +1,11 @@
 -- KEYS[1] = tap counter key
 -- KEYS[2] = points counter key
 -- KEYS[3] = leaderboard key
+-- KEYS[4] = active rounds sorted set key
 -- ARGV[1] = user_id
 -- ARGV[2] = is_nikita (0 or 1)
 -- ARGV[3] = round_end_timestamp (optional)
+-- ARGV[4] = round_id
 
 local tap_count = redis.call('INCR', KEYS[1])
 local points = 0
@@ -21,6 +23,11 @@ if ARGV[2] == '0' then
 else
   -- Nikita always gets 0 points but tap is recorded
   redis.call('ZADD', KEYS[3], 0, ARGV[1])
+end
+
+-- Add round to active rounds sorted set (score = end timestamp)
+if ARGV[4] and ARGV[3] and tonumber(ARGV[3]) > 0 then
+  redis.call('ZADD', KEYS[4], tonumber(ARGV[3]), ARGV[4])
 end
 
 -- Set TTL based on round end time + buffer (30 minutes after round ends)

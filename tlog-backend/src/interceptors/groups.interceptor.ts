@@ -1,6 +1,6 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { catchError, Observable } from 'rxjs';
+import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { instanceToPlain } from 'class-transformer';
 import { SerializationGroup } from '../common/enums/serialization-group.enum';
@@ -79,15 +79,6 @@ export class GroupsInterceptor implements NestInterceptor {
             // Re-throw to maintain error handling
             throw serializationError;
           }
-        }),
-        catchError(error => {
-          console.error('GroupsInterceptor stream error:', {
-            error: error.message,
-            stack: error.stack,
-            url: req.url,
-            method: req.method,
-          });
-          throw error;
         }),
       );
     } catch (interceptorError) {

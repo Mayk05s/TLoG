@@ -32,12 +32,16 @@ export class TapCacheService implements OnModuleInit {
       RedisTapKeys.userTapsKey(roundId, userId), // tap counter
       RedisTapKeys.userPointsKey(roundId, userId), // points counter
       RedisTapKeys.leaderboardKey(roundId), // leaderboard
+      RedisTapKeys.activeRoundsKey(), // active rounds queue
     ];
 
     const args = [userId, isNikita ? '1' : '0'];
     if (roundEndTimestamp) {
       args.push(Math.floor(roundEndTimestamp / 1000).toString());
+    } else {
+      args.push('0');
     }
+    args.push(roundId); // Добавляем roundId как последний аргумент
 
     const [tapCount, points] = (await this.redisService.evalsha(
       this.tapDeltaSha,
@@ -81,5 +85,45 @@ export class TapCacheService implements OnModuleInit {
       limit - 1,
       'WITHSCORES',
     );
+  }
+
+  /**
+   * Получение раунда из Sorted Set для обработки воркером
+   * Берет раунд с наименьшим временем завершения (ZPOPMIN)
+   */
+  async getRoundFromQueue(): Promise<{ roundId: string; endTime: number } | null> {
+    const result = await this.redisService.getClient().zpopmin(RedisTapKeys.activeRoundsKey());
+
+    if (result && result.length >= 2) {
+      return {
+        roundId: result[0],
+        endTime: parseInt(result[1]),
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Проверка, завершен ли раунд по времени
+   */
+  async isRoundExpired(roundId: string, endTime: number): Promise<boolean> {
+    const currentTime = Date.now();
+    return currentTime > endTime;
+  }
+
+  /**
+   * Удаление всех данных завершенного раунда из Redis
+   */
+  async cleanupExpiredRound(roundId: string): Promise<void> {
+    const pattern = `round:${roundId}:*`;
+    const keys = await this.redisService.keys(pattern);
+
+    if (keys.length > 0) {
+      await this.redisService.delMultiple(...keys);
+    }
+
+    await this.redisService.getClient().zrem(RedisTapKeys.activeRoundsKey(), roundId);
+    this.logger.log(`Cleaned up expired round: ${roundId}, deleted ${keys.length} keys`);
   }
 }

@@ -83,10 +83,26 @@ export class PlayerStatsService {
   async syncRoundStats(roundId: string): Promise<void> {
     const allLeaderboardData = await this.tapCache.getLeaderboard(roundId, -1);
 
+    if (allLeaderboardData.length === 0) {
+      return;
+    }
+
+    const userIds: string[] = [];
+    const userStats = new Map<string, { points: number; tapCount: number }>();
+
     for (let i = 0; i < allLeaderboardData.length; i += 2) {
       const userId = allLeaderboardData[i];
-      const points = parseInt(allLeaderboardData[i + 1]);
-      const { tapCount } = await this.tapCache.getCounters(roundId, userId);
+      userIds.push(userId);
+
+      const { points, tapCount } = await this.tapCache.getCounters(roundId, userId);
+
+      userStats.set(userId, { points, tapCount });
+    }
+
+    const upsertPromises = userIds.map(async userId => {
+      const stats = userStats.get(userId);
+      const points = stats?.points || 0;
+      const tapCount = stats?.tapCount || 0;
 
       if (tapCount > 0 || points > 0) {
         try {
@@ -99,7 +115,10 @@ export class PlayerStatsService {
           this.logger.error(`Failed to sync stats for user ${userId}: ${error.message}`);
         }
       }
-    }
+    });
+
+    await Promise.allSettled(upsertPromises);
+    this.logger.log(`Synced stats for round ${roundId}: ${userIds.length} users`);
   }
 
   private async buildLeaderboardWithUsernames(

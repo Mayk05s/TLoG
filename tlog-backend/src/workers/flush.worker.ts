@@ -1,51 +1,114 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { RedisService } from '../cache/redis.service';
+import { TapCacheService } from '../cache/tap-cache.service';
 import { PlayerStatsService } from '../modules/rounds/player-stats.service';
+import { RedisService } from '../cache/redis.service';
+import { RedisTapKeys } from '../cache/redis.tap-keys';
 
 @Injectable()
 export class FlushWorker {
   private readonly logger = new Logger(FlushWorker.name);
+  private readonly MAX_RETRY_ATTEMPTS = 3;
+  private readonly RETRY_DELAY_BASE = 1000;
+  private readonly BATCH_SIZE = 5;
 
   constructor(
-    private redisService: RedisService,
-    private playerStatsService: PlayerStatsService,
+    private readonly tapCache: TapCacheService,
+    private readonly playerStats: PlayerStatsService,
+    private readonly redisService: RedisService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_SECONDS)
-  async flushTapsToDatabase() {
+  async processActiveRounds(): Promise<void> {
     try {
-      const roundsWithData = await this.getActiveRoundsFromRedis();
+      const processedRounds: Array<{ roundId: string; endTime: number }> = [];
 
-      for (const roundId of roundsWithData) {
-        // Save checkpoints for all users in round and sync their stats
-        void this.playerStatsService.syncRoundStats(roundId);
+      // Берем батч раундов из Sorted Set (ZPOPMIN - берет раунды с наименьшим временем завершения)
+      for (let i = 0; i < this.BATCH_SIZE; i++) {
+        const round = await this.tapCache.getRoundFromQueue();
+        if (round) {
+          processedRounds.push(round);
+        } else {
+          break; // Sorted Set пуст
+        }
       }
 
-      if (roundsWithData.length > 0) {
-        this.logger.debug(`Processed ${roundsWithData.length} rounds with data`);
+      if (processedRounds.length === 0) {
+        this.logger.debug('No rounds available in active rounds sorted set');
+        return;
       }
+
+      this.logger.log(
+        `Worker processing ${processedRounds.length} rounds: ${processedRounds.map(r => r.roundId).join(', ')}`,
+      );
+
+      const processingPromises = processedRounds.map(({ roundId, endTime }) =>
+        this.processRoundWithRetry(roundId, endTime),
+      );
+
+      const results = await Promise.allSettled(processingPromises);
+
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      this.logger.log(`Batch processing completed: ${successful} successful, ${failed} failed`);
     } catch (error) {
-      this.logger.error('Failed to flush taps to database', error);
+      this.logger.error('Failed to process rounds from active rounds sorted set:', error);
     }
   }
 
-  /**
-   * Get rounds that have data in Redis by checking leaderboard keys
-   */
-  private async getActiveRoundsFromRedis(): Promise<string[]> {
+  private async processRoundWithRetry(roundId: string, endTime: number): Promise<void> {
     try {
-      const leaderboardPattern = 'round:*:leaderboard';
-      const leaderboardKeys = await this.redisService.getClient().keys(leaderboardPattern);
+      await this.retryWithBackoff(
+        () => this.playerStats.syncRoundStats(roundId),
+        this.MAX_RETRY_ATTEMPTS,
+      );
 
-      const roundIds = leaderboardKeys
-        .map(key => key.split(':')[1])
-        .filter(roundId => roundId && roundId.length > 0);
+      this.logger.debug(`Successfully synced round ${roundId}`);
+      // Проверяем, завершен ли раунд
+      const isExpired = await this.tapCache.isRoundExpired(roundId, endTime);
 
-      return [...new Set(roundIds)];
+      if (isExpired) {
+        this.logger.log(`Round ${roundId} has expired, cleaning up...`);
+        await this.tapCache.cleanupExpiredRound(roundId);
+        return;
+      }
     } catch (error) {
-      this.logger.error('Failed to get active rounds from Redis:', error);
-      return [];
+      this.logger.error(
+        `Failed to sync round ${roundId} after ${this.MAX_RETRY_ATTEMPTS} attempts:`,
+        error,
+      );
+      // В случае ошибки возвращаем раунд обратно в Sorted Set
+      await this.redisService.getClient().zadd(RedisTapKeys.activeRoundsKey(), endTime, roundId);
+      this.logger.warn(`Returned round ${roundId} back to active rounds sorted set due to error`);
     }
+  }
+
+  private async retryWithBackoff(
+    operation: () => Promise<void>,
+    maxAttempts: number,
+  ): Promise<void> {
+    let attempt = 1;
+
+    while (attempt <= maxAttempts) {
+      try {
+        await operation();
+        return;
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+
+        const delay = this.RETRY_DELAY_BASE * Math.pow(2, attempt - 1);
+        this.logger.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+
+        await this.sleep(delay);
+        attempt++;
+      }
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

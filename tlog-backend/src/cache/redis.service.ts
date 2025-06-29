@@ -32,37 +32,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.get(key);
   }
 
-  async set(key: string, value: string, ttl?: number): Promise<'OK'> {
-    if (ttl) {
-      return this.client.setex(key, ttl, value);
-    }
-    return this.client.set(key, value);
-  }
-
-  async incr(key: string): Promise<number> {
-    return this.client.incr(key);
-  }
-
-  async hincrby(key: string, field: string, increment: number): Promise<number> {
-    return this.client.hincrby(key, field, increment);
-  }
-
-  async hgetall(key: string): Promise<Record<string, string>> {
-    return this.client.hgetall(key);
-  }
-
-  async hget(key: string, field: string): Promise<string | null> {
-    return this.client.hget(key, field);
-  }
-
-  async hset(key: string, field: string, value: string): Promise<number> {
-    return this.client.hset(key, field, value);
-  }
-
-  async del(key: string): Promise<number> {
-    return this.client.del(key);
-  }
-
   async delMultiple(...keys: string[]): Promise<number> {
     if (keys.length === 0) return 0;
     return this.client.del(...keys);
@@ -70,18 +39,6 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   async keys(pattern: string): Promise<string[]> {
     return this.client.keys(pattern);
-  }
-
-  async zincrby(key: string, increment: number, member: string): Promise<string> {
-    return this.client.zincrby(key, increment, member);
-  }
-
-  async sadd(key: string, ...members: string[]): Promise<number> {
-    return this.client.sadd(key, ...members);
-  }
-
-  async expire(key: string, seconds: number): Promise<number> {
-    return this.client.expire(key, seconds);
   }
 
   async evalsha(sha: string, numkeys: number, ...args: (string | number)[]): Promise<any> {
@@ -92,16 +49,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return this.client.script('LOAD', script) as Promise<string>;
   }
 
-  // Legacy methods for backward compatibility with existing taps module
-  async getClickCount(roundId: string, userId: string): Promise<number> {
-    const key = `clicks:${roundId}:${userId}`;
-    const count = await this.client.get(key);
-    return parseInt(count || '0', 10);
-  }
-
-  async incrementClickCount(roundId: string, userId: string): Promise<number> {
-    const key = `clicks:${roundId}:${userId}`;
-    return this.client.incr(key);
+  async zrevrange(
+    key: string,
+    start: number,
+    stop: number,
+    withScores?: 'WITHSCORES',
+  ): Promise<string[]> {
+    if (withScores === 'WITHSCORES') {
+      return this.client.zrevrange(key, start, stop, 'WITHSCORES');
+    }
+    return this.client.zrevrange(key, start, stop);
   }
 
   async getRoundPendingClicks(roundId: string): Promise<Array<{ userId: string; clicks: number }>> {
@@ -120,58 +77,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
-  async forceFlushRound(roundId: string): Promise<Array<{ userId: string; clicks: number }>> {
-    const pendingClicks = await this.getRoundPendingClicks(roundId);
-
-    // Clear the Redis keys after getting the data
-    const pattern = `clicks:${roundId}:*`;
-    const keys = await this.client.keys(pattern);
-    if (keys.length > 0) {
-      await this.client.del(...keys);
-    }
-
-    return pendingClicks;
-  }
-
-  /**
-   * Health check for Redis connection
-   */
-  async isHealthy(): Promise<boolean> {
-    try {
-      const pong = await this.client.ping();
-      return pong === 'PONG';
-    } catch (error) {
-      this.logger.error('Redis health check failed:', error);
-      return false;
-    }
-  }
-
   // Direct access to Redis client for complex operations
   getClient(): Redis {
     return this.client;
-  }
-
-  async zrevrange(
-    key: string,
-    start: number,
-    stop: number,
-    withScores?: string,
-  ): Promise<string[]> {
-    if (withScores === 'WITHSCORES') {
-      return this.client.zrevrange(key, start, stop, 'WITHSCORES');
-    }
-    return this.client.zrevrange(key, start, stop);
-  }
-
-  async zadd(key: string, score: number, member: string): Promise<number> {
-    return this.client.zadd(key, score, member);
-  }
-
-  async lpush(key: string, ...values: string[]): Promise<number> {
-    return this.client.lpush(key, ...values);
-  }
-
-  async lrange(key: string, start: number, stop: number): Promise<string[]> {
-    return this.client.lrange(key, start, stop);
   }
 }
