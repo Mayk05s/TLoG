@@ -44,7 +44,14 @@ export function RoundPage() {
 
   const tapMutation = useMutation({
     mutationFn: () => tapsApi.submitTap(id!),
-    onSuccess: () => refetchStats(),
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
+    onSuccess: () => {
+      refetchStats();
+    },
+    onError: (error) => {
+      console.warn('Tap failed after retries:', error);
+    },
   });
 
   useEffect(() => {
@@ -66,7 +73,7 @@ export function RoundPage() {
         <AppHeader
           title="Game Rounds"
           username={user.username}
-          role={user.role}ж
+          role={user.role}
           onLogout={handleLogout}
         />
         <Container maxWidth="lg" sx={{ mt: 4 }}>
@@ -177,7 +184,6 @@ export function RoundPage() {
                 {/* Игровое поле с гусем */}
                 <GooseButton
                   canTap={canTap}
-                  isPending={tapMutation.isPending}
                   onTap={() => tapMutation.mutate()}
                 />
 

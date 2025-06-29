@@ -20,15 +20,26 @@ export function AppHeader({ title, username, role, onLogout, onBack, backButtonT
     }}>
       <Container maxWidth="lg">
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-              The Last of Guss
-            </Typography>
-            {username && role && (
-              <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                Welcome, {username}! 🎮 (Role: {role})
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              component="img"
+              src="/tlog-pb.svg"
+              alt="TLoG Logo"
+              sx={{
+                height: 64,
+                width: 'auto',
+                objectFit: 'contain',
+              }}
+            />
+            <Box>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                The Last of Guss
               </Typography>
-            )}
+
+                <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  Welcome, {username}! 🎮 { role && `(Role: ${role}))`}
+                </Typography>
+            </Box>
           </Box>
 
           <Box sx={{ display: 'flex', gap: 1 }}>

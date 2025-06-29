@@ -561,7 +561,7 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
                                     label={`L:${leaderboardPoints}`}
                                     size="small"
                                     variant="outlined"
-                                    color={bot.pointsCount === leaderboardPoints ? 'success' : 'warning'}
+                                    color={'success'}
                                     sx={{
                                       fontSize: '0.6rem',
                                       height: '18px',
