@@ -115,17 +115,32 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
 
     // Giant spores only at high levels (800+ points)
     if (score >= 800) {
-      const giantSporeCount = Math.min(3, Math.floor((score - 800) / 67) + 1); // 1-3 spores
+      const giantSporeCount = Math.min(3, Math.floor((score - 800) / 67) + 1);
 
       for (let i = 0; i < giantSporeCount; i++) {
         const giantIndex = baseCount + i;
+        const sizeVariant = (giantIndex % 5) + 1;
+        const sizeMultiplier = 1 + (scoreProgress * 3);
 
-        // Random size from 70 to 130
-        const randomSize = 70 + Math.random() * 60; // 70-130
+        let top, left;
 
-        // Completely random positions, may partially exit the edges
-        const randomTop = -20 + Math.random() * 140; // from -20% to 120%
-        const randomLeft = -20 + Math.random() * 140; // from -20% to 120%
+        if (giantIndex < 12) {
+          const gridX = giantIndex % 4;
+          const gridY = Math.floor(giantIndex / 4) % 3;
+          const baseX = (gridX / 3) * 80 + 10;
+          const baseY = (gridY / 2) * 80 + 10;
+
+          const offsetX = ((giantIndex * 73) % 21) - 10;
+          const offsetY = ((giantIndex * 97) % 21) - 10;
+
+          top = Math.max(5, Math.min(90, baseY + offsetY));
+          left = Math.max(5, Math.min(90, baseX + offsetX));
+        } else {
+          const seed1 = (giantIndex * 73 + 17) % 100;
+          const seed2 = (giantIndex * 97 + 23) % 100;
+          top = (seed1 * 0.85) + 5;
+          left = (seed2 * 0.85) + 5;
+        }
 
         const giantRed = Math.min(255, red + 50);
         const giantGreen = Math.max(0, green - 50);
@@ -136,14 +151,14 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         spores.push({
           id: giantIndex,
           className: 'virus-spore virus-spore-giant',
-          size: Math.round(randomSize),
+          size: Math.round(15 + (sizeVariant * 4 * sizeMultiplier)),
           opacity: 1,
-          top: randomTop + '%',
-          left: randomLeft + '%',
+          top: top + '%',
+          left: left + '%',
           backgroundColor: giantColor,
           boxShadow: `0 0 ${Math.round(12 + scoreProgress * 16)}px ${giantShadow}`,
-          animationDelay: (Math.random() * 2) + 's', // random animation delay
-          animationDuration: (8 + Math.random() * 4) + 's', // random duration 8-12s
+          animationDelay: (giantIndex * 0.1) + 's',
+          animationDuration: (6 + (giantIndex % 3)) + 's',
         });
       }
     }
@@ -257,15 +272,9 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
           if (disabled) return;
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
-            const syntheticMouseEvent = {
-              ...e,
-              clientX: 0,
-              clientY: 0,
-              button: 0,
-              buttons: 1,
-              stopPropagation: () => e.stopPropagation(),
-            } as React.MouseEvent<HTMLDivElement>;
-            handleGooseClick(syntheticMouseEvent);
+            onClick();
+            setIsPressed(true);
+            setTimeout(() => setIsPressed(false), 200);
           }
         }}
       >

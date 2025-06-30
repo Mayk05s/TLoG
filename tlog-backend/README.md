@@ -49,6 +49,33 @@ The API will be available at `http://localhost:3000` with Swagger documentation 
 
 ## 🏗️ Architecture
 
+📋 **[Detailed Architecture Diagrams](./architecture-diagrams.md)** - Sequence diagrams for Redis operations and FlushWorker synchronization
+
+### System Overview
+
+TLoG backend uses a **hybrid architecture** combining PostgreSQL for persistent data and Redis for high-performance real-time gaming operations:
+
+- **PostgreSQL**: User accounts, round metadata, final statistics
+- **Redis**: Real-time tap counting, leaderboards, active round queues  
+- **FlushWorker**: Background synchronization between Redis ↔ PostgreSQL every 30 seconds
+
+### Real-Time Game Flow
+
+1. **Tap Processing** (`POST /taps`):
+   - Lua script `tap_delta.lua` handles atomic operations in Redis
+   - Updates tap counters, calculates points (11th tap = 10 points)
+   - Maintains real-time leaderboard in Redis sorted set
+
+2. **Statistics Retrieval** (`GET /rounds/:id/stats`):
+   - Fetches leaderboard from Redis for real-time data
+   - Combines with PostgreSQL user data for complete response
+   - Sub-100ms response times for active rounds
+
+3. **Background Synchronization**:
+   - FlushWorker processes active rounds queue (`active:rounds` sorted set)
+   - Batch processing (5 rounds in parallel) with retry logic
+   - Sync-first approach: PostgreSQL updated before Redis cleanup
+
 ### Technology Stack
 - **Runtime**: Node.js 18 + TypeScript (strict mode)
 - **Framework**: NestJS v10 with Fastify adapter
