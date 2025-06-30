@@ -1,11 +1,22 @@
+export interface User {
+  id: string;
+  username: string;
+  role: 'admin' | 'survivor' | 'nikita';
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LoginResponse {
+  user: User;
   accessToken: string;
-  refreshToken: string;
-  user: {
-    id: string;
-    username: string;
-    role: 'admin' | 'survivor' | 'nikita';
-  };
+  refreshToken?: string;
+}
+
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
 }
 
 export interface Round {

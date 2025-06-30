@@ -1,42 +1,61 @@
+import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query/react';
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
-
-const API_BASE_URL = 'http://localhost:3001';
-
-interface TokenConfig {
-  token?: string;
-  tokenType?: 'access' | 'refresh';
-}
+import { logout, setCredentials } from '../authSlice';
+import config from '../../config';
 
 const baseQuery = fetchBaseQuery({
-  baseUrl: API_BASE_URL,
-  prepareHeaders: (headers, { extra }) => {
-    const tokenConfig = extra as TokenConfig | undefined;
+  baseUrl: config.API_BASE_URL,
+  prepareHeaders: (headers, { getState }) => {
+    const state = getState() as any;
+    const token = state?.auth?.token;
 
-    if (tokenConfig?.token) {
-      headers.set('authorization', `Bearer ${tokenConfig.token}`);
-    } else {
-      const defaultToken = localStorage.getItem('accessToken');
-      if (defaultToken) {
-        headers.set('authorization', `Bearer ${defaultToken}`);
-      }
+    if (token) {
+      headers.set('authorization', `Bearer ${token}`);
     }
-
     return headers;
   },
 });
 
-const baseQueryWithAuth: BaseQueryFn<
+const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  const result = await baseQuery(args, api, extraOptions);
+  let result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    window.location.href = '/login';
+    const state = api.getState() as any;
+    const refreshToken = state?.auth?.refreshToken;
+
+    if (refreshToken) {
+      const refreshResult = await baseQuery(
+        {
+          url: '/auth/refresh',
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${refreshToken}`,
+          },
+        },
+        api,
+        extraOptions
+      );
+
+      if (refreshResult.data) {
+        const refreshData = refreshResult.data as any;
+
+        api.dispatch(setCredentials({
+          user: refreshData.user,
+          token: refreshData.accessToken,
+          refreshToken: refreshData.refreshToken || refreshToken,
+        }));
+
+        result = await baseQuery(args, api, extraOptions);
+      } else {
+        api.dispatch(logout());
+      }
+    } else {
+      api.dispatch(logout());
+    }
   }
 
   return result;
@@ -44,8 +63,7 @@ const baseQueryWithAuth: BaseQueryFn<
 
 export const apiSlice = createApi({
   reducerPath: 'api',
-  baseQuery: baseQueryWithAuth,
+  baseQuery: baseQueryWithReauth,
   tagTypes: ['Round', 'User', 'Tap', 'Auth'],
   endpoints: () => ({}),
 });
-

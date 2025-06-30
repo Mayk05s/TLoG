@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import { Close, ExpandLess, ExpandMore, Pause, PlayArrow } from '@mui/icons-material';
-import { API_BASE_URL } from '../store/config';
 import { useLoginMutation, useSignupMutation } from '../store/api';
 import { BOT_BEHAVIOR, BOT_SPEED_PRESETS, BOTS_CONFIG } from '../config/bots.config';
 

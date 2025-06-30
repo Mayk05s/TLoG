@@ -1,4 +1,5 @@
 import { apiSlice } from './apiSlice';
+import { setCredentials } from '../authSlice';
 import type { LoginResponse } from '../types';
 
 export interface SignupRequest {
@@ -19,6 +20,18 @@ export const authApi = apiSlice.injectEndpoints({
         method: 'POST',
         body: credentials,
       }),
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(setCredentials({
+            user: data.user,
+            token: data.accessToken,
+            refreshToken: data.refreshToken,
+          }));
+        } catch (error) {
+          //todo
+        }
+      },
       invalidatesTags: ['Auth'],
     }),
 
@@ -28,9 +41,29 @@ export const authApi = apiSlice.injectEndpoints({
         method: 'POST',
         body: userData,
       }),
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(setCredentials({
+            user: data.user,
+            token: data.accessToken,
+            refreshToken: data.refreshToken,
+          }));
+        } catch (error) {
+          // todo
+        }
+      },
+      invalidatesTags: ['Auth'],
+    }),
+
+    refresh: builder.mutation<LoginResponse, void>({
+      query: () => ({
+        url: '/auth/refresh',
+        method: 'POST',
+      }),
       invalidatesTags: ['Auth'],
     }),
   }),
 });
 
-export const { useLoginMutation, useSignupMutation } = authApi;
+export const { useLoginMutation, useSignupMutation, useRefreshMutation } = authApi;
