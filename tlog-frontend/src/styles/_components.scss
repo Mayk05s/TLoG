@@ -180,7 +180,7 @@
   50% { transform: scale(1.02); }
 }
 
-/* Вирусная среда - основные слои */
+/* Viral environment - main layers */
 .virus-environment {
   position: absolute;
   inset: 0;
@@ -220,7 +220,7 @@
   }
 }
 
-/* Плавающие споры и частицы */
+/* Floating spores and particles */
 .virus-particles {
   position: absolute;
   inset: 0;
@@ -259,7 +259,7 @@
   }
 }
 
-/* Энергетические импульсы */
+/* Energy pulses */
 .energy-pulses {
   position: absolute;
   inset: 0;
@@ -296,7 +296,7 @@
   }
 }
 
-/* Световые волны */
+/* Light waves */
 .light-waves {
   position: absolute;
   inset: 0;
@@ -357,7 +357,7 @@
   100% { transform: translateX(-50%) scale(0.95); }
 }
 
-/* Круги на воде при клике */
+/* Water ripples on click */
 .water-ripple {
   position: absolute;
   width: 20px;

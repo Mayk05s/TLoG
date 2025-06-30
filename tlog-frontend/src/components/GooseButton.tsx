@@ -74,37 +74,37 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
 
   return (
     <div className="goose-container">
-      {/* Живой фон с эффектами вируса */}
+      {/* Virus effect background */}
       <div className={`goose-background ${currentStage.bgClass}`}>
-        {/* Основной дышащий фон */}
+        {/* Main breathing background */}
         <div className="virus-environment">
           <div className="virus-layer virus-layer-1"></div>
           <div className="virus-layer virus-layer-2"></div>
           <div className="virus-layer virus-layer-3"></div>
         </div>
 
-        {/* Плавающие споры и частицы */}
+        {/* Floating spores and particles */}
         <div className="virus-particles">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className={`virus-spore virus-spore-${i + 1}`}></div>
           ))}
         </div>
 
-        {/* Энергетические импульсы */}
+        {/* Energy pulses */}
         <div className="energy-pulses">
           <div className="energy-pulse energy-pulse-1"></div>
           <div className="energy-pulse energy-pulse-2"></div>
           <div className="energy-pulse energy-pulse-3"></div>
         </div>
 
-        {/* Световые волны */}
+        {/* Light waves */}
         <div className="light-waves">
           <div className="light-wave light-wave-1"></div>
           <div className="light-wave light-wave-2"></div>
         </div>
       </div>
 
-      {/* Интерактивная область гуся */}
+      {/* Interactive goose area */}
       <div
         ref={gooseRef}
         className={`goose-interactive ${isPressed ? 'goose-pressed' : ''}`}
@@ -119,7 +119,6 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
           }
         }}
       >
-        {/* Круги на воде при клике */}
         {waterRipples.map(ripple => (
           <div
             key={ripple.id}
@@ -132,7 +131,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
           />
         ))}
 
-        {/* Сам гусь */}
+        {/* Goose sprite */}
         <div className="goose-sprite-container">
           <img
             src={currentStage.image}
@@ -141,20 +140,20 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
             draggable={false}
           />
 
-          {/* Светящиеся глаза для высоких стадий */}
-          {currentStage.threshold >= 300 && (
+          {/* Glowing eyes for high stages */}
+          {currentStage.threshold >= 500 && (
             <div className="goose-eyes-glow"></div>
           )}
 
-          {/* Энергетическая аура для максимальных стадий */}
+          {/* Energy aura for maximum stages */}
           {currentStage.threshold >= 1000 && (
             <div className="goose-energy-aura"></div>
           )}
         </div>
       </div>
 
-      {/* Индикатор стадии мутации */}
-      <div className="mutation-indicator">
+      {/* Mutation stage indicator */}
+      <div className="goose-stage-indicator">
         <div className="mutation-level" style={{
           transform: `scaleX(${Math.min(currentStage.intensity / 2.5, 1)})`
         }}></div>
