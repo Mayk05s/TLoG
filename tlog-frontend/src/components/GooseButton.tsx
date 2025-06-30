@@ -11,6 +11,7 @@ import '../styles/_components.scss';
 interface GooseButtonProps {
   score: number;
   onClick: () => void;
+  disabled?: boolean;
 }
 
 const GOOSE_STAGES = [
@@ -30,10 +31,19 @@ interface WaterRipple {
   timestamp: number;
 }
 
-export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
+interface EnergyPulse {
+  x: number;
+  y: number;
+  id: number;
+  timestamp: number;
+}
+
+export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabled }) => {
   const [isPressed, setIsPressed] = useState(false);
   const [waterRipples, setWaterRipples] = useState<WaterRipple[]>([]);
+  const [energyPulses, setEnergyPulses] = useState<EnergyPulse[]>([]);
   const [rippleId, setRippleId] = useState(0);
+  const [pulseId, setPulseId] = useState(0);
   const gooseRef = useRef<HTMLDivElement>(null);
 
   const currentStage = useMemo(() => {
@@ -49,20 +59,35 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
 
     if (gooseRef.current) {
       const rect = gooseRef.current.getBoundingClientRect();
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
+      const containerRect = gooseRef.current.closest('.goose-container')?.getBoundingClientRect();
+
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
 
       setWaterRipples(ripples => [...ripples, {
-        x: centerX,
-        y: centerY,
+        x: clickX,
+        y: clickY,
         id: rippleId,
         timestamp: Date.now()
       }]);
       setRippleId(id => id + 1);
+
+      if (containerRect) {
+        const pulseX = rect.left - containerRect.left + clickX;
+        const pulseY = rect.top - containerRect.top + clickY;
+
+        setEnergyPulses(pulses => [...pulses, {
+          x: pulseX,
+          y: pulseY,
+          id: pulseId,
+          timestamp: Date.now()
+        }]);
+        setPulseId(id => id + 1);
+      }
     }
 
     setTimeout(() => setIsPressed(false), 200);
-  }, [onClick, rippleId]);
+  }, [onClick, rippleId, pulseId]);
 
   React.useEffect(() => {
     if (waterRipples.length === 0) return;
@@ -71,6 +96,14 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
     }, 100);
     return () => clearTimeout(timeout);
   }, [waterRipples]);
+
+  React.useEffect(() => {
+    if (energyPulses.length === 0) return;
+    const timeout = setTimeout(() => {
+      setEnergyPulses(pulses => pulses.filter(p => Date.now() - p.timestamp < 1500));
+    }, 100);
+    return () => clearTimeout(timeout);
+  }, [energyPulses]);
 
   return (
     <div className="goose-container">
@@ -90,13 +123,6 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
           ))}
         </div>
 
-        {/* Energy pulses */}
-        <div className="energy-pulses">
-          <div className="energy-pulse energy-pulse-1"></div>
-          <div className="energy-pulse energy-pulse-2"></div>
-          <div className="energy-pulse energy-pulse-3"></div>
-        </div>
-
         {/* Light waves */}
         <div className="light-waves">
           <div className="light-wave light-wave-1"></div>
@@ -107,12 +133,13 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
       {/* Interactive goose area */}
       <div
         ref={gooseRef}
-        className={`goose-interactive ${isPressed ? 'goose-pressed' : ''}`}
-        onClick={handleGooseClick}
+        className={`goose-interactive ${isPressed ? 'goose-pressed' : ''} ${disabled ? 'goose-disabled' : ''}`}
+        onClick={disabled ? undefined : handleGooseClick}
         role="button"
         tabIndex={0}
         aria-label={`Goose mutation stage ${currentStage.threshold}+ - Click to tap`}
         onKeyDown={(e) => {
+          if (disabled) return;
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
             handleGooseClick(e as React.MouseEvent<HTMLDivElement>);
@@ -151,6 +178,16 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick }) => {
           )}
         </div>
       </div>
+      {energyPulses.map(pulse => (
+        <div
+          key={pulse.id}
+          className="energy-pulse energy-pulse-click"
+          style={{
+            left: pulse.x,
+            top: pulse.y,
+          }}
+        />
+      ))}
 
       {/* Mutation stage indicator */}
       <div className="goose-stage-indicator">

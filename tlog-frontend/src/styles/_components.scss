@@ -42,7 +42,7 @@
   inset: 0;
   pointer-events: none;
   background: repeating-radial-gradient(circle at 70% 30%, rgba(0,255,180,0.12) 0, rgba(0,255,180,0.12) 10px, transparent 12px 100px),
-    repeating-radial-gradient(circle at 30% 70%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 8px, transparent 10px 80px);
+  repeating-radial-gradient(circle at 30% 70%, rgba(255,255,255,0.08) 0, rgba(255,255,255,0.08) 8px, transparent 10px 80px);
   mix-blend-mode: lighten;
   animation: goose-virus-pulse 3s infinite alternate;
 }
@@ -53,8 +53,8 @@
   inset: 0;
   pointer-events: none;
   background: radial-gradient(circle at 20% 80%, #fff7 0 8%, transparent 30%),
-    radial-gradient(circle at 80% 20%, #0ff8 0 6%, transparent 25%),
-    radial-gradient(circle at 50% 50%, #fff4 0 10%, transparent 40%);
+  radial-gradient(circle at 80% 20%, #0ff8 0 6%, transparent 25%),
+  radial-gradient(circle at 50% 50%, #fff4 0 10%, transparent 40%);
   filter: blur(2px) brightness(1.2);
   opacity: 0.7;
   animation: goose-spores-float 6s linear infinite;
@@ -149,7 +149,7 @@
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
 }
 
-/* ===== GOOSE BUTTON - ЖИВАЯ МУТИРУЮЩАЯ КНОПКА ===== */
+/* ===== GOOSE BUTTON - ПРАВИЛЬНЫЙ ПОРЯДОК СЛОЕВ ===== */
 
 .goose-container {
   position: relative;
@@ -166,18 +166,13 @@
   overflow: hidden;
 }
 
-/* === ЖИВОЙ ФОН С ЭФФЕКТАМИ ВИРУСА === */
+
 .goose-background {
   position: absolute;
   inset: 0;
   overflow: hidden;
   background: radial-gradient(circle at center, #1a1a1a, #000);
   animation: backgroundPulse 3s ease-in-out infinite;
-}
-
-@keyframes backgroundPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.02); }
 }
 
 /* Viral environment - main layers */
@@ -209,17 +204,6 @@
   background: radial-gradient(circle, transparent 60%, rgba(255, 100, 0, 0.08) 95%);
 }
 
-@keyframes virusBreathing {
-  0%, 100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 0.6;
-  }
-  50% {
-    transform: scale(1.1) rotate(180deg);
-    opacity: 0.9;
-  }
-}
-
 /* Floating spores and particles */
 .virus-particles {
   position: absolute;
@@ -245,56 +229,6 @@
 .virus-spore-6 { top: 60%; right: 8%; animation-delay: 4s; }
 .virus-spore-7 { bottom: 15%; left: 50%; animation-delay: 4.8s; }
 .virus-spore-8 { top: 10%; right: 45%; animation-delay: 5.6s; }
-
-@keyframes sporeFloat {
-  0% {
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% {
-    transform: translateY(-20px) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-/* Energy pulses */
-.energy-pulses {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.energy-pulse {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  animation: energyPulse 2s ease-out infinite;
-}
-
-.energy-pulse-1 { animation-delay: 0s; }
-.energy-pulse-2 { animation-delay: 0.7s; }
-.energy-pulse-3 { animation-delay: 1.4s; }
-
-@keyframes energyPulse {
-  0% {
-    width: 2px;
-    height: 2px;
-    opacity: 1;
-    transform: translate(-50%, -50%);
-  }
-  100% {
-    width: 100px;
-    height: 100px;
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-}
 
 /* Light waves */
 .light-waves {
@@ -327,13 +261,12 @@
   }
 }
 
-/* === ИНТЕРАКТИВНАЯ ОБЛАСТЬ ГУСЯ === */
+
 .goose-interactive {
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 10;
   width: 95%;
   height: 95%;
   display: flex;
@@ -360,31 +293,13 @@
 /* Water ripples on click */
 .water-ripple {
   position: absolute;
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(0, 200, 255, 0.8);
   border-radius: 50%;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  animation: waterRippleExpand 1.5s ease-out forwards;
 }
 
-@keyframes waterRippleExpand {
-  0% {
-    width: 20px;
-    height: 20px;
-    opacity: 1;
-    border-width: 3px;
-  }
-  100% {
-    width: 200px;
-    height: 200px;
-    opacity: 0;
-    border-width: 1px;
-  }
-}
 
-/* === СПРАЙТ ГУСЯ === */
+/* Спрайт гуся */
 .goose-sprite-container {
   position: relative;
   width: 100%;
@@ -408,7 +323,7 @@
   50% { transform: translateY(-3px); }
 }
 
-/* Светящиеся глаза для высоких стадий */
+
 .goose-eyes-glow {
   position: absolute;
   top: 30%;
@@ -426,7 +341,7 @@
   50% { opacity: 1; }
 }
 
-/* Энергетическая аура для максимальных стадий */
+
 .goose-energy-aura {
   position: absolute;
   inset: -20px;
@@ -442,32 +357,68 @@
   }
   50% {
     transform: scale(1.1) rotate(180deg);
-    opacity: 1;
+    opacity: 0.9;
   }
 }
 
-/* === ИНДИКАТОР МУТАЦИИ === */
-.mutation-indicator {
+.energy-pulse {
   position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 80px;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 2px;
-  overflow: hidden;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.mutation-level {
-  height: 100%;
-  background: linear-gradient(90deg, #00ff64, #ff6400, #ff0040);
-  border-radius: 2px;
-  transition: transform 0.5s ease;
-  transform-origin: left;
+.energy-pulse-click {
+  animation: energyPulseClick 1.2s ease-out forwards;
 }
 
-/* === СТАДИИ МУТАЦИИ === */
+@keyframes energyPulseClick {
+  0% {
+    width: 4px;
+    height: 4px;
+    opacity: 0.8;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    opacity: 0.4;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes virusBreathing {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1) rotate(180deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes sporeFloat {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% {
+    transform: translateY(-20px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+
 .goose-bg-stage-0 {
   background: radial-gradient(circle, #1a1a2e, #16213e, #0f3460);
 }
@@ -491,10 +442,6 @@
 
 .goose-bg-stage-3 {
   background: radial-gradient(circle, #2e2e1a, #3e3e16, #606010);
-}
-
-.goose-bg-stage-3 .energy-pulse {
-  background: rgba(255, 255, 0, 0.9);
 }
 
 .goose-bg-stage-4 {
@@ -526,11 +473,6 @@
   animation: apocalypse 1s ease-in-out infinite;
 }
 
-.goose-bg-stage-6 .energy-pulse {
-  background: rgba(255, 0, 0, 1);
-  animation-duration: 0.8s;
-}
-
 @keyframes apocalypse {
   0%, 100% {
     filter: brightness(1) contrast(1.5) saturate(1.5);
@@ -539,5 +481,107 @@
   50% {
     filter: brightness(1.5) contrast(2) saturate(2);
     transform: scale(1.05);
+  }
+}
+
+.goose-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  filter: grayscale(1) brightness(0.5) contrast(0.7);
+  pointer-events: none;
+
+  &:hover {
+    transform: translateX(-50%) !important;
+  }
+
+  .goose-interactive:hover {
+    transform: translateX(-50%) scale(1) !important;
+  }
+
+  .goose-sprite {
+    filter: grayscale(1) brightness(0.4) contrast(0.5) drop-shadow(0 0 5px rgba(0, 0, 0, 0.8));
+    animation: none !important;
+  }
+
+  .virus-environment {
+    animation: none !important;
+    opacity: 0.2 !important;
+    filter: grayscale(1) brightness(0.3);
+  }
+
+  .virus-layer,
+  .virus-layer-1,
+  .virus-layer-2,
+  .virus-layer-3 {
+    animation: none !important;
+    opacity: 0.1 !important;
+  }
+
+  .virus-particles .virus-spore {
+    animation: none !important;
+    opacity: 0.1;
+  }
+
+  .light-waves .light-wave {
+    animation: none !important;
+    opacity: 0.1;
+  }
+
+  .goose-background {
+    animation: none !important;
+    filter: grayscale(1) brightness(0.3);
+  }
+
+  .water-ripple {
+    display: none;
+  }
+
+  .goose-eyes-glow {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  .goose-energy-aura {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  &.goose-bg-stage-5 .virus-environment,
+  &.goose-bg-stage-6 .virus-environment {
+    animation: none !important;
+    opacity: 0.1 !important;
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(100, 100, 100, 0.15) 10px,
+        rgba(100, 100, 100, 0.15) 20px
+    );
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  &::after {
+    content: 'ROUND INACTIVE';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    pointer-events: none;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(4px);
   }
 }
