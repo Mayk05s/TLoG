@@ -56,12 +56,12 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
     const maxScore = 1000;
     const scoreProgress = Math.min(score / maxScore, 1);
 
-    // Количество обычных спор: от 6 до 70 (чуть больше на начальной стадии)
+    // Minimum and maximum number of spores
     const minSpores = 6;
     const maxSpores = 70;
     const baseCount = Math.round(minSpores + (scoreProgress * (maxSpores - minSpores)));
 
-    // Плавные цвета в зависимости от очков
+    // Color progression based on score
     const colorProgress = scoreProgress;
     const red = Math.round(255 * colorProgress);
     const green = Math.round(255 * (1 - colorProgress * 0.5));
@@ -71,29 +71,28 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
 
     const spores = [];
 
-    // Обычные споры
+    // Generate spores based on the current score
     for (let i = 0; i < baseCount; i++) {
       const sizeVariant = (i % 5) + 1;
       const sizeMultiplier = 1 + (scoreProgress * 3);
 
-      // Улучшенное распределение для равномерного покрытия
       let top, left;
 
       if (i < 12) {
-        // Первые 12 спор - равномерно по сетке 4x3
+        // First 12 spores - evenly distributed on a 4x3 grid
         const gridX = i % 4;
         const gridY = Math.floor(i / 4) % 3;
         const baseX = (gridX / 3) * 80 + 10; // 10%, 36.7%, 63.3%, 90%
         const baseY = (gridY / 2) * 80 + 10; // 10%, 50%, 90%
 
-        // Случайное смещение в пределах ячейки сетки
+        // Random offset within the grid cell
         const offsetX = ((i * 73) % 21) - 10;
         const offsetY = ((i * 97) % 21) - 10;
 
         top = Math.max(5, Math.min(90, baseY + offsetY));
         left = Math.max(5, Math.min(90, baseX + offsetX));
       } else {
-        // Остальные споры - псевдослучайно по всей области
+        // Other spores - pseudo-randomly across the area
         const seed1 = (i * 73 + 17) % 100;
         const seed2 = (i * 97 + 23) % 100;
         top = (seed1 * 0.85) + 5;
@@ -114,50 +113,19 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       });
     }
 
-    // Гигантские споры только на высоких уровнях (800+ очков)
+    // Giant spores only at high levels (800+ points)
     if (score >= 800) {
-      const giantSporeCount = Math.min(3, Math.floor((score - 800) / 67) + 1); // 1-3 штуки
+      const giantSporeCount = Math.min(3, Math.floor((score - 800) / 67) + 1); // 1-3 spores
 
       for (let i = 0; i < giantSporeCount; i++) {
         const giantIndex = baseCount + i;
-        const sizeMultiplier = 2 + (scoreProgress * 4); // В 2-6 раз больше обычных
 
-        // Особые позиции для гигантских спор - случайно возле краев
-        const edges = [
-          'top',    // верхний край
-          'right',  // правый край
-          'bottom', // нижний край
-          'left',    // левый край
-        ];
+        // Random size from 70 to 130
+        const randomSize = 70 + Math.random() * 60; // 70-130
 
-        const edge = edges[giantIndex % edges.length];
-        let top, left;
-
-        const randomSeed1 = (giantIndex * 137 + 41) % 100;
-        const randomSeed2 = (giantIndex * 179 + 73) % 100;
-
-        switch (edge) {
-          case 'top':
-            top = 5 + (randomSeed1 % 15); // 5-20% от верха
-            left = 10 + (randomSeed2 % 80); // 10-90% по горизонтали
-            break;
-          case 'right':
-            top = 10 + (randomSeed1 % 80); // 10-90% по вертикали
-            left = 80 + (randomSeed2 % 15); // 80-95% от левого края
-            break;
-          case 'bottom':
-            top = 80 + (randomSeed1 % 15); // 80-95% от верха
-            left = 10 + (randomSeed2 % 80); // 10-90% по горизонтали
-            break;
-          case 'left':
-            top = 10 + (randomSeed1 % 80); // 10-90% по вертикали
-            left = 5 + (randomSeed2 % 15); // 5-20% от левого края
-            break;
-        }
-
-        const pos = { top, left };
-        const offsetX = ((giantIndex * 113) % 11) - 5; // Уменьшаем смещение
-        const offsetY = ((giantIndex * 127) % 11) - 5;
+        // Completely random positions, may partially exit the edges
+        const randomTop = -20 + Math.random() * 140; // from -20% to 120%
+        const randomLeft = -20 + Math.random() * 140; // from -20% to 120%
 
         const giantRed = Math.min(255, red + 50);
         const giantGreen = Math.max(0, green - 50);
@@ -168,20 +136,20 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         spores.push({
           id: giantIndex,
           className: 'virus-spore virus-spore-giant',
-          size: Math.round(30 + (6 * sizeMultiplier)), // Увеличиваем базовый размер с 8 до 20
+          size: Math.round(randomSize),
           opacity: 1,
-          top: Math.max(5, Math.min(85, pos.top + offsetY)) + '%',
-          left: Math.max(5, Math.min(85, pos.left + offsetX)) + '%',
+          top: randomTop + '%',
+          left: randomLeft + '%',
           backgroundColor: giantColor,
           boxShadow: `0 0 ${Math.round(12 + scoreProgress * 16)}px ${giantShadow}`,
-          animationDelay: (giantIndex * 0.15) + 's',
-          animationDuration: (8 + (giantIndex % 2)) + 's',
+          animationDelay: (Math.random() * 2) + 's', // random animation delay
+          animationDuration: (8 + Math.random() * 4) + 's', // random duration 8-12s
         });
       }
     }
 
     return spores;
-  }, [Math.floor(score / 10)]); // Пересчитываем только каждые 10 очков
+  }, [score]); // Recalculate based on score directly
 
   const handleGooseClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -289,7 +257,15 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
           if (disabled) return;
           if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
-            handleGooseClick(e as React.MouseEvent<HTMLDivElement>);
+            const syntheticMouseEvent = {
+              ...e,
+              clientX: 0,
+              clientY: 0,
+              button: 0,
+              buttons: 1,
+              stopPropagation: () => e.stopPropagation(),
+            } as React.MouseEvent<HTMLDivElement>;
+            handleGooseClick(syntheticMouseEvent);
           }
         }}
       >
