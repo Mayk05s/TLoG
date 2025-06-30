@@ -220,8 +220,8 @@ export function RoundPage() {
                 </Box>
 
                 <GooseButton
-                  canTap={canTap}
-                  onTap={handleTap}
+                  score={roundData.stats?.currentUserPoints || 0}
+                  onClick={canTap ? handleTap : () => {}}
                 />
 
                 {roundWithStatus.status === 'cooldown' && (
