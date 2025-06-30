@@ -34,7 +34,7 @@ export class FlushWorker {
       }
 
       if (processedRounds.length === 0) {
-        this.logger.debug('No rounds available in active rounds sorted set');
+        // this.logger.debug('No rounds available in active rounds sorted set');
         return;
       }
 

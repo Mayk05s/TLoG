@@ -323,8 +323,13 @@ export function RoundPage() {
         </Box>
 
         <BotManager
-          roundId={id!}
-          roundStatus={roundWithStatus.status}
+          roundData={{
+            id: id!,
+            startsAt: roundData.startsAt,
+            endsAt: roundData.endsAt,
+            status: roundWithStatus.status,
+            leaderboard: roundData.leaderboard,
+          }}
           onStatsUpdate={() => refetchStats()}
         />
       </Container>

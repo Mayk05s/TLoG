@@ -189,6 +189,6 @@ export const BOT_SPEED_PRESETS = {
 };
 
 export const BOT_BEHAVIOR = {
-  MAX_BOTS: 30,
+  MAX_BOTS: 5,
   CHECK_INTERVAL: 1000
 };

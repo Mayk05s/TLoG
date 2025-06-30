@@ -35,7 +35,7 @@ export class UsersService {
       return Role.admin;
     }
 
-    if (lowerUsername === 'nikita' || lowerUsername === 'никита') {
+    if (lowerUsername === 'nikita' || lowerUsername === 'nikita') {
       return Role.nikita;
     }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -13,54 +13,23 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  IconButton,
-  InputAdornment,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
   TextField,
   Typography,
 } from '@mui/material';
-import { Cancel, CheckCircle, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useLoginMutation, useSignupMutation } from '../store/api';
-
-interface PasswordRule {
-  text: string;
-  test: (password: string) => boolean;
-}
-
-const passwordRules: PasswordRule[] = [
-  { text: 'At least 6 characters', test: (p) => p.length >= 6 },
-  { text: 'Contains uppercase letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
-  { text: 'Contains lowercase letter (a-z)', test: (p) => /[a-z]/.test(p) },
-  { text: 'Contains number (0-9)', test: (p) => /[0-9]/.test(p) },
-  { text: 'Contains special character (!@#$%^&*)', test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
-];
+import { TestProjectInfo } from '../components/TestProjectInfo';
 
 export function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [pendingUsername, setPendingUsername] = useState('');
-  const [passwordsMatch, setPasswordsMatch] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
-  const isPasswordValid = passwordRules.every(rule => rule.test(password));
-  const needsConfirmPassword = isCreateMode && !showPassword;
-  const canCreateUser = isCreateMode && isPasswordValid && (!needsConfirmPassword || (passwordsMatch && confirmPassword));
-
-  useEffect(() => {
-    if (confirmPassword && needsConfirmPassword) {
-      setPasswordsMatch(password === confirmPassword);
-    } else {
-      setPasswordsMatch(true);
-    }
-  }, [password, confirmPassword, needsConfirmPassword]);
+  const isPasswordValid = password.length >= 6;
+  const canCreateUser = isCreateMode && isPasswordValid;
 
   const [login, { isLoading: isLoggingIn }] = useLoginMutation();
   const [signup, { isLoading: isSigningUp }] = useSignupMutation();
@@ -69,7 +38,9 @@ export function LoginPage() {
     try {
       const data = await login({ username, password }).unwrap();
       localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/rounds');
     } catch (error: any) {
@@ -89,7 +60,9 @@ export function LoginPage() {
     try {
       const data = await signup({ username, password }).unwrap();
       localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
       localStorage.setItem('user', JSON.stringify(data.user));
       navigate('/rounds');
     } catch (error: any) {
@@ -114,9 +87,7 @@ export function LoginPage() {
     setIsCreateMode(true);
     setUsername(pendingUsername);
     setPassword('');
-    setConfirmPassword('');
     setPendingUsername('');
-    setShowPassword(false);
   };
 
   const handleCancelCreate = () => {
@@ -128,17 +99,7 @@ export function LoginPage() {
   const handleBackToLogin = () => {
     setIsCreateMode(false);
     setPassword('');
-    setConfirmPassword('');
-    setShowPassword(false);
     setError('');
-  };
-
-  const getRuleIcon = (isValid: boolean) => {
-    return isValid ? (
-      <CheckCircle sx={{ color: 'success.main', fontSize: 20 }} />
-    ) : (
-      <Cancel sx={{ color: 'error.main', fontSize: 20 }} />
-    );
   };
 
   const isLoading = isLoggingIn || isSigningUp;
@@ -147,9 +108,12 @@ export function LoginPage() {
     <Container maxWidth="sm" sx={{
       minHeight: '100vh',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      gap: 2
     }}>
+      <TestProjectInfo />
       <Card sx={{ width: '100%', p: 2 }}>
         <CardContent>
           <Typography variant="h4" component="h1" align="center" gutterBottom>
@@ -174,76 +138,15 @@ export function LoginPage() {
             <TextField
               fullWidth
               label="Password"
-              type={showPassword ? 'text' : 'password'}
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               margin="normal"
               required
               disabled={isLoading}
-              InputProps={{
-                endAdornment: isCreateMode ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                      disabled={isLoading}
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ) : undefined
-              }}
+              helperText={isCreateMode && password && !isPasswordValid ? 'Minimum 6 characters required' : ''}
+              error={isCreateMode && password.length > 0 && !isPasswordValid}
             />
-
-            {isCreateMode && (
-              <>
-                <Box sx={{ mt: 2, mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Password Requirements:
-                  </Typography>
-                  <List dense sx={{ py: 0 }}>
-                    {passwordRules.map((rule, index) => (
-                      <ListItem key={index} sx={{ py: 0.5, px: 0 }}>
-                        <ListItemIcon sx={{ minWidth: 30 }}>
-                          {getRuleIcon(rule.test(password))}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={rule.text}
-                          sx={{
-                            '& .MuiListItemText-primary': {
-                              fontSize: '0.875rem',
-                              color: rule.test(password) ? 'success.main' : 'text.secondary'
-                            }
-                          }}
-                        />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-
-                {needsConfirmPassword && (
-                  <TextField
-                    fullWidth
-                    label="Confirm Password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    margin="normal"
-                    required
-                    disabled={isLoading}
-                    error={!passwordsMatch && confirmPassword.length > 0}
-                    helperText={!passwordsMatch && confirmPassword.length > 0 ? 'Passwords do not match' : ''}
-                    InputProps={{
-                      endAdornment: confirmPassword.length > 0 ? (
-                        <InputAdornment position="end">
-                          {getRuleIcon(passwordsMatch)}
-                        </InputAdornment>
-                      ) : null
-                    }}
-                  />
-                )}
-              </>
-            )}
 
             {error && (
               <Alert severity="error" sx={{ mt: 2 }}>
@@ -255,22 +158,22 @@ export function LoginPage() {
               type="submit"
               fullWidth
               variant="contained"
-              size="large"
+              sx={{ mt: 3, mb: 2 }}
               disabled={isLoading || (isCreateMode && !canCreateUser)}
-              sx={{ mt: 3 }}
-              startIcon={isLoading ? <CircularProgress size={20} /> : undefined}
             >
-              {isLoading ? (isCreateMode ? 'Creating...' : 'Connecting...') :
-               (isCreateMode ? 'Create Account' : 'Login')}
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                isCreateMode ? 'Create Account' : 'Login'
+              )}
             </Button>
 
             {isCreateMode && (
               <Button
                 fullWidth
-                variant="text"
+                variant="outlined"
                 onClick={handleBackToLogin}
                 disabled={isLoading}
-                sx={{ mt: 1 }}
               >
                 Back to Login
               </Button>
@@ -279,19 +182,17 @@ export function LoginPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={showCreateDialog} onClose={handleCancelCreate} maxWidth="xs" fullWidth>
+      <Dialog open={showCreateDialog} onClose={handleCancelCreate}>
         <DialogTitle>User Not Found</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            User "{pendingUsername}" does not exist. Would you like to create a new account with this username?
+            The username "{pendingUsername}" doesn't exist. Would you like to create a new account with this username?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancelCreate}>
-            No
-          </Button>
-          <Button onClick={handleConfirmCreate} variant="contained" autoFocus>
-            Yes, Create Account
+          <Button onClick={handleCancelCreate}>Cancel</Button>
+          <Button onClick={handleConfirmCreate} variant="contained">
+            Create Account
           </Button>
         </DialogActions>
       </Dialog>

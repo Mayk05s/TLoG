@@ -2,9 +2,9 @@ import { NestFastifyApplication } from '@nestjs/platform-fastify';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 /**
- * Настраивает Swagger документацию для API
+ * Configures Swagger documentation for API
  *
- * @param app NestFastifyApplication экземпляр
+ * @param app NestFastifyApplication instance
  */
 export function setupSwagger(app: NestFastifyApplication) {
   const config = new DocumentBuilder()

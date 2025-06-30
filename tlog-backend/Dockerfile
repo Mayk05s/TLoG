@@ -1,39 +1,37 @@
-# Multi-stage build
-FROM node:20-alpine AS build
-RUN npm install -g pnpm
-
-WORKDIR /app
-
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-COPY . .
-RUN pnpm prisma:generate
-RUN pnpm build
-
-FROM node:20-alpine AS production
+# Тестовый Dockerfile с чистым Node.js для диагностики
+FROM node:20-slim AS base
 
 ENV NODE_ENV=production
 
-RUN npm install -g pnpm prisma
+# Устанавливаем только необходимые системные пакеты
+RUN apt-get update && apt-get install -y \
+    procps \
+    htop \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nestjs -u 1001 -G nodejs
+RUN npm install -g pnpm prisma
 
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY prisma ./prisma
+COPY src ./src
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm prisma:generate
+RUN pnpm build
+
 RUN pnpm install --prod --frozen-lockfile
-
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
-
 
 RUN npx prisma generate
 
+RUN groupadd -r nodejs && useradd -r -g nodejs nestjs
 RUN chown -R nestjs:nodejs /app
-USER nestjs
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+# Упрощенная команда запуска БЕЗ seed для теста
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]

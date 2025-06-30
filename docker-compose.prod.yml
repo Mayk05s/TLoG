@@ -1,6 +1,24 @@
-version: '3.8'
-
 services:
+
+  # ───────────────────────── Frontend ──────────────────
+  frontend:
+    container_name: tlog-frontend
+    build:
+      context: ./tlog-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    networks:
+      - data-layer_default
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # ───────────────────────── Backend ──────────────────
   backend:
     container_name: tlog-backend-prod
@@ -13,15 +31,14 @@ services:
       PORT: ${PORT}
       ROUND_DURATION: ${ROUND_DURATION}
       COOLDOWN_DURATION: ${COOLDOWN_DURATION}
-      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}"
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
       JWT_SECRET: ${JWT_SECRET}
       REDIS_HOST: redis
-      REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
       - "${PORT}:${PORT}"
@@ -33,7 +50,7 @@ services:
     networks:
       - data-layer_default
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT}/health"]
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -52,7 +69,7 @@ services:
     networks:
       - data-layer_default
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -64,13 +81,13 @@ services:
     restart: unless-stopped
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
     volumes:
       - tlog_redis_prod:/data
     networks:
       - data-layer_default
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "PING" ]
       interval: 10s
       timeout: 5s
       retries: 5

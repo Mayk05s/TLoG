@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  # ───────────────────────── Frontend ──────────────────
+  frontend:
+    container_name: tlog-frontend
+    build:
+      context: ./tlog-frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:3000"
+    networks:
+      - data-layer_default
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # ───────────────────────── Backend ──────────────────
   backend:
     container_name: tlog-backend
@@ -8,9 +25,12 @@ services:
       context: ./tlog-backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable
+      DB_HOST: postgres
+      REDIS_HOST: redis
       NODE_ENV: ${NODE_ENV}
       JWT_SECRET: ${JWT_SECRET}
       PORT: ${PORT}
@@ -24,7 +44,7 @@ services:
     networks:
       - data-layer_default
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT}/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

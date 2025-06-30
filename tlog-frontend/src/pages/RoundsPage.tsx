@@ -267,7 +267,7 @@ export function RoundsPage() {
   );
 }
 
-// Отдельный компонент для карточки раунда
+// Round card component
 function RoundCard({ round, currentTime, navigate }: {
   round: Round;
   currentTime: number;

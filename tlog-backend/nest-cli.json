@@ -8,7 +8,7 @@
     "assets": [
       {
         "include": "cache/scripts/*.lua",
-        "outDir": "dist"
+        "outDir": "dist/src"
       }
     ],
     "plugins": [
