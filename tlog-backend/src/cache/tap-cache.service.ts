@@ -12,7 +12,7 @@ export class TapCacheService implements OnModuleInit {
   constructor(private readonly redisService: RedisService) {}
 
   async onModuleInit() {
-    const scriptsPath = join(process.cwd(), 'src', 'cache', 'scripts');
+    const scriptsPath = join(__dirname, 'scripts');
     const tapDeltaLua = readFileSync(join(scriptsPath, 'tap_delta.lua'), 'utf8');
     this.tapDeltaSha = await this.redisService.scriptLoad(tapDeltaLua);
   }

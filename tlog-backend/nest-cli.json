@@ -5,6 +5,12 @@
   "entryFile": "index",
   "compilerOptions": {
     "deleteOutDir": true,
+    "assets": [
+      {
+        "include": "cache/scripts/*.lua",
+        "outDir": "dist"
+      }
+    ],
     "plugins": [
       {
         "name": "@nestjs/swagger",
