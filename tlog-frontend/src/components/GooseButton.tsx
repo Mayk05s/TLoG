@@ -72,7 +72,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       }]);
       setRippleId(id => id + 1);
 
-      if (containerRect) {
+      if (containerRect && !disabled) {
         const pulseX = rect.left - containerRect.left + clickX;
         const pulseY = rect.top - containerRect.top + clickY;
 
@@ -87,7 +87,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
     }
 
     setTimeout(() => setIsPressed(false), 200);
-  }, [onClick, rippleId, pulseId]);
+  }, [onClick, rippleId, pulseId, disabled]);
 
   React.useEffect(() => {
     if (waterRipples.length === 0) return;
@@ -110,11 +110,13 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       {/* Virus effect background */}
       <div className={`goose-background ${currentStage.bgClass}`}>
         {/* Main breathing background */}
-        <div className="virus-environment">
-          <div className="virus-layer virus-layer-1"></div>
-          <div className="virus-layer virus-layer-2"></div>
-          <div className="virus-layer virus-layer-3"></div>
-        </div>
+        {!disabled && (
+          <div className="virus-environment">
+            <div className="virus-layer virus-layer-1"></div>
+            <div className="virus-layer virus-layer-2"></div>
+            <div className="virus-layer virus-layer-3"></div>
+          </div>
+        )}
 
         {/* Floating spores and particles */}
         <div className="virus-particles">
@@ -195,6 +197,13 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
           transform: `scaleX(${Math.min(currentStage.intensity / 2.5, 1)})`
         }}></div>
       </div>
+
+      {/* Round inactive overlay */}
+      {disabled && (
+        <div className="round-inactive-overlay">
+          <div className="round-inactive-text">ROUND INACTIVE</div>
+        </div>
+      )}
     </div>
   );
 };

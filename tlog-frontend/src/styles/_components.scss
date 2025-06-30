@@ -149,7 +149,7 @@
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
 }
 
-/* ===== GOOSE BUTTON - ПРАВИЛЬНЫЙ ПОРЯДОК СЛОЕВ ===== */
+/* GOOSE BUTTON - LAYER ORDER */
 
 .goose-container {
   position: relative;
@@ -299,7 +299,7 @@
 }
 
 
-/* Спрайт гуся */
+/* Goose sprite */
 .goose-sprite-container {
   position: relative;
   width: 100%;
@@ -566,22 +566,27 @@
     pointer-events: none;
     border-radius: inherit;
   }
+}
 
-  &::after {
-    content: 'ROUND INACTIVE';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.9);
-    color: rgba(255, 255, 255, 0.9);
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: bold;
-    letter-spacing: 1px;
-    pointer-events: none;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(4px);
-  }
+/* Round inactive overlay element */
+.round-inactive-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.round-inactive-text {
+  background: rgba(0, 0, 0, 0.9);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(4px);
 }
