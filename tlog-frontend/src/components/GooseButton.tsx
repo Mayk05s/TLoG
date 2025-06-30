@@ -110,7 +110,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         backgroundColor: sporeColor,
         boxShadow: `0 0 ${Math.round(4 + scoreProgress * 8)}px ${shadowColor}`,
         animationDelay: (i * 0.1) + 's',
-        animationDuration: (6 + (i % 3)) + 's'
+        animationDuration: (6 + (i % 3)) + 's',
       });
     }
 
@@ -122,18 +122,43 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         const giantIndex = baseCount + i;
         const sizeMultiplier = 2 + (scoreProgress * 4); // В 2-6 раз больше обычных
 
-        // Особые позиции для гигантских спор (не пересекаются с обычными)
-        const positions = [
-          { top: 20, left: 20 }, // левый верх
-          { top: 20, left: 75 }, // правый верх
-          { top: 75, left: 50 }  // центр низ
+        // Особые позиции для гигантских спор - случайно возле краев
+        const edges = [
+          'top',    // верхний край
+          'right',  // правый край
+          'bottom', // нижний край
+          'left',    // левый край
         ];
 
-        const pos = positions[i] || positions[0];
-        const offsetX = ((giantIndex * 113) % 21) - 10;
-        const offsetY = ((giantIndex * 127) % 21) - 10;
+        const edge = edges[giantIndex % edges.length];
+        let top, left;
 
-        // Особый цвет для гигантских спор - более насыщенный красный
+        const randomSeed1 = (giantIndex * 137 + 41) % 100;
+        const randomSeed2 = (giantIndex * 179 + 73) % 100;
+
+        switch (edge) {
+          case 'top':
+            top = 5 + (randomSeed1 % 15); // 5-20% от верха
+            left = 10 + (randomSeed2 % 80); // 10-90% по горизонтали
+            break;
+          case 'right':
+            top = 10 + (randomSeed1 % 80); // 10-90% по вертикали
+            left = 80 + (randomSeed2 % 15); // 80-95% от левого края
+            break;
+          case 'bottom':
+            top = 80 + (randomSeed1 % 15); // 80-95% от верха
+            left = 10 + (randomSeed2 % 80); // 10-90% по горизонтали
+            break;
+          case 'left':
+            top = 10 + (randomSeed1 % 80); // 10-90% по вертикали
+            left = 5 + (randomSeed2 % 15); // 5-20% от левого края
+            break;
+        }
+
+        const pos = { top, left };
+        const offsetX = ((giantIndex * 113) % 11) - 5; // Уменьшаем смещение
+        const offsetY = ((giantIndex * 127) % 11) - 5;
+
         const giantRed = Math.min(255, red + 50);
         const giantGreen = Math.max(0, green - 50);
         const giantBlue = Math.max(0, blue - 20);
@@ -143,14 +168,14 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         spores.push({
           id: giantIndex,
           className: 'virus-spore virus-spore-giant',
-          size: Math.round(8 + (3 * sizeMultiplier)), // Гигантский размер
+          size: Math.round(30 + (6 * sizeMultiplier)), // Увеличиваем базовый размер с 8 до 20
           opacity: 1,
           top: Math.max(5, Math.min(85, pos.top + offsetY)) + '%',
           left: Math.max(5, Math.min(85, pos.left + offsetX)) + '%',
           backgroundColor: giantColor,
           boxShadow: `0 0 ${Math.round(12 + scoreProgress * 16)}px ${giantShadow}`,
           animationDelay: (giantIndex * 0.15) + 's',
-          animationDuration: (8 + (giantIndex % 2)) + 's'
+          animationDuration: (8 + (giantIndex % 2)) + 's',
         });
       }
     }
@@ -174,7 +199,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
         x: clickX,
         y: clickY,
         id: rippleId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       }]);
       setRippleId(id => id + 1);
 
@@ -186,7 +211,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
           x: pulseX,
           y: pulseY,
           id: pulseId,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }]);
         setPulseId(id => id + 1);
       }
@@ -239,7 +264,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
                 backgroundColor: spore.backgroundColor,
                 boxShadow: spore.boxShadow,
                 animationDelay: spore.animationDelay,
-                animationDuration: spore.animationDuration
+                animationDuration: spore.animationDuration,
               }}
             ></div>
           ))}
@@ -275,7 +300,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
             style={{
               left: ripple.x,
               top: ripple.y,
-              animationDelay: `${Date.now() - ripple.timestamp}ms`
+              animationDelay: `${Date.now() - ripple.timestamp}ms`,
             }}
           />
         ))}
@@ -314,7 +339,7 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       {/* Mutation stage indicator */}
       <div className="goose-stage-indicator">
         <div className="mutation-level" style={{
-          transform: `scaleX(${Math.min(currentStage.intensity / 2.5, 1)})`
+          transform: `scaleX(${Math.min(currentStage.intensity / 2.5, 1)})`,
         }}></div>
       </div>
 
