@@ -213,22 +213,12 @@
 
 .virus-spore {
   position: absolute;
-  width: 4px;
-  height: 4px;
   background: rgba(0, 255, 100, 0.8);
   border-radius: 50%;
   box-shadow: 0 0 6px rgba(0, 255, 100, 0.6);
   animation: sporeFloat 6s linear infinite;
+  pointer-events: none;
 }
-
-.virus-spore-1 { top: 20%; left: 10%; animation-delay: 0s; }
-.virus-spore-2 { top: 30%; right: 15%; animation-delay: 0.8s; }
-.virus-spore-3 { bottom: 25%; left: 20%; animation-delay: 1.6s; }
-.virus-spore-4 { bottom: 35%; right: 10%; animation-delay: 2.4s; }
-.virus-spore-5 { top: 50%; left: 5%; animation-delay: 3.2s; }
-.virus-spore-6 { top: 60%; right: 8%; animation-delay: 4s; }
-.virus-spore-7 { bottom: 15%; left: 50%; animation-delay: 4.8s; }
-.virus-spore-8 { top: 10%; right: 45%; animation-delay: 5.6s; }
 
 /* Light waves */
 .light-waves {

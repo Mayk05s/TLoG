@@ -52,6 +52,42 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       .find(stage => score >= stage.threshold) || GOOSE_STAGES[0];
   }, [score]);
 
+  const virusSpores = useMemo(() => {
+    const maxScore = 1000; // последняя стадия
+    const scoreProgress = Math.min(score / maxScore, 1); // прогресс от 0 до 1
+
+    // Количество спор: от 4 до 80 + случайное число
+    const minSpores = 4;
+    const maxSpores = 80;
+    const baseCount = Math.round(minSpores + (scoreProgress * (maxSpores - minSpores)));
+
+    // Добавляем случайное число в процентах от базового количества (±20%)
+    const randomBonus = Math.round(baseCount * (Math.random() * 0.4 - 0.2)); // от -20% до +20%
+    const sporeCount = Math.max(minSpores, baseCount + randomBonus);
+
+    const spores = [];
+    for (let i = 0; i < sporeCount; i++) {
+      const sizeVariant = (i % 5) + 1; // 1, 2, 3, 4, 5 - больше вариантов размера
+      const sizeMultiplier = 1 + (scoreProgress * 3); // от 1 до 4x
+
+      // Случайные позиции по всей области
+      const top = Math.random() * 85 + 5; // от 5% до 90%
+      const left = Math.random() * 85 + 5; // от 5% до 90%
+
+      spores.push({
+        id: i,
+        className: 'virus-spore',
+        size: Math.round(3 + (sizeVariant * 1.5 * sizeMultiplier)), // от 4.5px до 25.5px
+        opacity: 0.5 + (Math.random() * 0.5), // от 0.5 до 1.0
+        top: top + '%',
+        left: left + '%',
+        animationDelay: (Math.random() * 6) + 's', // случайная задержка 0-6с
+        animationDuration: (4 + Math.random() * 4) + 's' // длительность 4-8с
+      });
+    }
+    return spores;
+  }, [score]);
+
   const handleGooseClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     setIsPressed(true);
@@ -120,8 +156,20 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
 
         {/* Floating spores and particles */}
         <div className="virus-particles">
-          {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className={`virus-spore virus-spore-${i + 1}`}></div>
+          {virusSpores.map(spore => (
+            <div
+              key={spore.id}
+              className={spore.className}
+              style={{
+                width: spore.size,
+                height: spore.size,
+                opacity: spore.opacity,
+                top: spore.top,
+                left: spore.left,
+                animationDelay: spore.animationDelay,
+                animationDuration: spore.animationDuration
+              }}
+            ></div>
           ))}
         </div>
 
