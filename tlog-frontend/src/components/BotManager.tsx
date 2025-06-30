@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import { Close, ExpandLess, ExpandMore, Pause, PlayArrow } from '@mui/icons-material';
-import { useLoginMutation, useSignupMutation } from '../store/api';
 import { BOT_BEHAVIOR, BOT_SPEED_PRESETS, BOTS_CONFIG } from '../config/bots.config';
 import config from '../config';
 
@@ -54,9 +53,6 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   const intervalsRef = useRef<Map<string, number>>(new Map());
   const leaderboardIntervalRef = useRef<number | undefined>(undefined);
 
-  const [login] = useLoginMutation();
-  const [signup] = useSignupMutation();
-
   const selectedSpeed = speedPresetKeys[selectedSpeedIndex];
 
   const stopAllBots = useCallback(() => {
@@ -87,8 +83,23 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
 
   const authenticateBot = async (botConfig: typeof BOTS_CONFIG[0]): Promise<string | null> => {
     try {
-      const response = await login({ username: botConfig.username, password: botConfig.password }).unwrap();
-      return response.accessToken;
+      const response = await fetch(`${config.API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: botConfig.username,
+          password: botConfig.password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Login failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.accessToken;
     } catch (error) {
       console.warn(`Bot ${botConfig.username} auth failed:`, error);
       return null;
@@ -96,7 +107,20 @@ export function BotManager({ roundId, roundStatus, onStatsUpdate }: BotManagerPr
   };
 
   const registerBot = async (botConfig: typeof BOTS_CONFIG[0]): Promise<void> => {
-    await signup({ username: botConfig.username, password: botConfig.password }).unwrap();
+    const response = await fetch(`${config.API_BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: botConfig.username,
+        password: botConfig.password,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Registration failed: ${response.status}`);
+    }
   };
 
   const updateBotStatus = (username: string, updates: Partial<BotStatus>) => {
