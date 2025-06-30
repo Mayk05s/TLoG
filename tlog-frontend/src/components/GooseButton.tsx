@@ -53,40 +53,110 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
   }, [score]);
 
   const virusSpores = useMemo(() => {
-    const maxScore = 1000; // последняя стадия
-    const scoreProgress = Math.min(score / maxScore, 1); // прогресс от 0 до 1
+    const maxScore = 1000;
+    const scoreProgress = Math.min(score / maxScore, 1);
 
-    // Количество спор: от 4 до 80 + случайное число
-    const minSpores = 4;
-    const maxSpores = 80;
+    // Количество обычных спор: от 6 до 70 (чуть больше на начальной стадии)
+    const minSpores = 6;
+    const maxSpores = 70;
     const baseCount = Math.round(minSpores + (scoreProgress * (maxSpores - minSpores)));
 
-    // Добавляем случайное число в процентах от базового количества (±20%)
-    const randomBonus = Math.round(baseCount * (Math.random() * 0.4 - 0.2)); // от -20% до +20%
-    const sporeCount = Math.max(minSpores, baseCount + randomBonus);
+    // Плавные цвета в зависимости от очков
+    const colorProgress = scoreProgress;
+    const red = Math.round(255 * colorProgress);
+    const green = Math.round(255 * (1 - colorProgress * 0.5));
+    const blue = Math.round(100 * (1 - colorProgress));
+    const sporeColor = `rgba(${red}, ${green}, ${blue}, 0.8)`;
+    const shadowColor = `rgba(${red}, ${green}, ${blue}, 0.6)`;
 
     const spores = [];
-    for (let i = 0; i < sporeCount; i++) {
-      const sizeVariant = (i % 5) + 1; // 1, 2, 3, 4, 5 - больше вариантов размера
-      const sizeMultiplier = 1 + (scoreProgress * 3); // от 1 до 4x
 
-      // Случайные позиции по всей области
-      const top = Math.random() * 85 + 5; // от 5% до 90%
-      const left = Math.random() * 85 + 5; // от 5% до 90%
+    // Обычные споры
+    for (let i = 0; i < baseCount; i++) {
+      const sizeVariant = (i % 5) + 1;
+      const sizeMultiplier = 1 + (scoreProgress * 3);
+
+      // Улучшенное распределение для равномерного покрытия
+      let top, left;
+
+      if (i < 12) {
+        // Первые 12 спор - равномерно по сетке 4x3
+        const gridX = i % 4;
+        const gridY = Math.floor(i / 4) % 3;
+        const baseX = (gridX / 3) * 80 + 10; // 10%, 36.7%, 63.3%, 90%
+        const baseY = (gridY / 2) * 80 + 10; // 10%, 50%, 90%
+
+        // Случайное смещение в пределах ячейки сетки
+        const offsetX = ((i * 73) % 21) - 10;
+        const offsetY = ((i * 97) % 21) - 10;
+
+        top = Math.max(5, Math.min(90, baseY + offsetY));
+        left = Math.max(5, Math.min(90, baseX + offsetX));
+      } else {
+        // Остальные споры - псевдослучайно по всей области
+        const seed1 = (i * 73 + 17) % 100;
+        const seed2 = (i * 97 + 23) % 100;
+        top = (seed1 * 0.85) + 5;
+        left = (seed2 * 0.85) + 5;
+      }
 
       spores.push({
         id: i,
         className: 'virus-spore',
-        size: Math.round(3 + (sizeVariant * 1.5 * sizeMultiplier)), // от 4.5px до 25.5px
-        opacity: 0.5 + (Math.random() * 0.5), // от 0.5 до 1.0
+        size: Math.round(3 + (sizeVariant * 1.5 * sizeMultiplier)),
+        opacity: 1,
         top: top + '%',
         left: left + '%',
-        animationDelay: (Math.random() * 6) + 's', // случайная задержка 0-6с
-        animationDuration: (4 + Math.random() * 4) + 's' // длительность 4-8с
+        backgroundColor: sporeColor,
+        boxShadow: `0 0 ${Math.round(4 + scoreProgress * 8)}px ${shadowColor}`,
+        animationDelay: (i * 0.1) + 's',
+        animationDuration: (6 + (i % 3)) + 's'
       });
     }
+
+    // Гигантские споры только на высоких уровнях (800+ очков)
+    if (score >= 800) {
+      const giantSporeCount = Math.min(3, Math.floor((score - 800) / 67) + 1); // 1-3 штуки
+
+      for (let i = 0; i < giantSporeCount; i++) {
+        const giantIndex = baseCount + i;
+        const sizeMultiplier = 2 + (scoreProgress * 4); // В 2-6 раз больше обычных
+
+        // Особые позиции для гигантских спор (не пересекаются с обычными)
+        const positions = [
+          { top: 20, left: 20 }, // левый верх
+          { top: 20, left: 75 }, // правый верх
+          { top: 75, left: 50 }  // центр низ
+        ];
+
+        const pos = positions[i] || positions[0];
+        const offsetX = ((giantIndex * 113) % 21) - 10;
+        const offsetY = ((giantIndex * 127) % 21) - 10;
+
+        // Особый цвет для гигантских спор - более насыщенный красный
+        const giantRed = Math.min(255, red + 50);
+        const giantGreen = Math.max(0, green - 50);
+        const giantBlue = Math.max(0, blue - 20);
+        const giantColor = `rgba(${giantRed}, ${giantGreen}, ${giantBlue}, 0.9)`;
+        const giantShadow = `rgba(${giantRed}, ${giantGreen}, ${giantBlue}, 0.7)`;
+
+        spores.push({
+          id: giantIndex,
+          className: 'virus-spore virus-spore-giant',
+          size: Math.round(8 + (3 * sizeMultiplier)), // Гигантский размер
+          opacity: 1,
+          top: Math.max(5, Math.min(85, pos.top + offsetY)) + '%',
+          left: Math.max(5, Math.min(85, pos.left + offsetX)) + '%',
+          backgroundColor: giantColor,
+          boxShadow: `0 0 ${Math.round(12 + scoreProgress * 16)}px ${giantShadow}`,
+          animationDelay: (giantIndex * 0.15) + 's',
+          animationDuration: (8 + (giantIndex % 2)) + 's'
+        });
+      }
+    }
+
     return spores;
-  }, [score]);
+  }, [Math.floor(score / 10)]); // Пересчитываем только каждые 10 очков
 
   const handleGooseClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -166,6 +236,8 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
                 opacity: spore.opacity,
                 top: spore.top,
                 left: spore.left,
+                backgroundColor: spore.backgroundColor,
+                boxShadow: spore.boxShadow,
                 animationDelay: spore.animationDelay,
                 animationDuration: spore.animationDuration
               }}
