@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  survivor
+  nikita
+  admin
+}
+
+model User {
+  id               String             @id @default(uuid()) @db.Uuid
+  username         String             @unique
+  password         String
+  role             Role               @default(survivor)
+  createdAt DateTime @default(now()) @map("created_at")
+  playerRoundStats PlayerRoundStats[]
+  tapEvents        TapEvent[]
+  clickBatches     TapBatch[]
+}
+
+model Round {
+  id               String             @id @default(uuid()) @db.Uuid
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  playerRoundStats PlayerRoundStats[]
+  tapEvents        TapEvent[]
+  clickBatches     TapBatch[]
+}
+
+model PlayerRoundStats {
+  user    User   @relation(fields: [userId], references: [id])
+  userId  String @map("user_id") @db.Uuid
+  round   Round  @relation(fields: [roundId], references: [id])
+  roundId String @map("round_id") @db.Uuid
+  taps    Int    @default(0)
+  points  Int    @default(0)
+
+  @@id([roundId, userId])
+  @@map("player_round_stats")
+}
+
+model TapEvent {
+  id        BigInt   @id @default(autoincrement()) @db.BigInt
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @map("user_id") @db.Uuid
+  round     Round    @relation(fields: [roundId], references: [id])
+  roundId   String   @map("round_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([roundId, userId, createdAt])
+  @@map("tap_events")
+}
+
+model TapBatch {
+  id             BigInt   @id @default(autoincrement()) @db.BigInt
+  user           User     @relation(fields: [userId], references: [id])
+  userId         String   @map("user_id") @db.Uuid
+  round          Round    @relation(fields: [roundId], references: [id])
+  roundId        String   @map("round_id") @db.Uuid
+  clickCount     Int      @map("click_count")
+  batchTimestamp DateTime @map("batch_timestamp")
+  syncedAt       DateTime @map("synced_at") @default(now())
+
+  @@index([roundId, userId])
+  @@index([roundId, batchTimestamp])
+  @@index([roundId, syncedAt])
+  @@map("tap_batches")
+}

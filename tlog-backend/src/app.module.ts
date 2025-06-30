@@ -1,0 +1,29 @@
+import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AppController } from './app.controller';
+import { GameModule } from './modules/game.module';
+import { LoggerModule } from './logger/logger.module';
+import { ConfigRootModule } from './config/config.module';
+import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './cache/redis.module';
+import { GroupsInterceptor } from './interceptors/groups.interceptor';
+
+@Module({
+  imports: [
+    ScheduleModule.forRoot(),
+    ConfigRootModule,
+    LoggerModule,
+    DatabaseModule,
+    RedisModule,
+    GameModule,
+  ],
+  controllers: [AppController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: GroupsInterceptor,
+    },
+  ],
+})
+export class AppModule {}

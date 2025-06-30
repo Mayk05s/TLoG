@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All Backend Tests" type="JavaScriptTestRunnerJest">
+    <config-file value="$PROJECT_DIR$/tlog-backend/test/jest-e2e.config.js" />
+    <node-interpreter value="project" />
+    <jest-package value="$PROJECT_DIR$/tlog-backend/node_modules/jest" />
+    <working-dir value="$PROJECT_DIR$/tlog-backend" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>
