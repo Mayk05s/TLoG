@@ -153,11 +153,11 @@
 
 .goose-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100%; /* Use full width of parent */
+  max-height: 80vh; /* Ensure it fits in the viewport height */
+  aspect-ratio: 3 / 4; /* Maintain proportions, height will be 4/3 of width */
   min-width: 200px;
-  min-height: 440px;
-  max-height: 620px;
+  margin: 0 auto; /* Center the block horizontally */
   display: flex;
   align-items: flex-end;
   justify-content: center;

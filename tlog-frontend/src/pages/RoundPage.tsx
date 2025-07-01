@@ -115,24 +115,26 @@ export function RoundPage() {
         onLogout={handleLogout}
       />
 
-      <Container maxWidth="lg" sx={{ py: 2, pb: 20 }}>
+      <Container maxWidth="lg" sx={{ py: 1, pb: 10 }}>
         <Box sx={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          mb: 3,
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 2, sm: 0 }
+          mb: 2
         }}>
-          <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          <Typography variant="h6" sx={{
+            fontWeight: 'bold',
+            fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }
+          }}>
             Round {roundData.id.slice(0, 8)}
           </Typography>
           <Button
             variant="outlined"
             onClick={() => navigate('/rounds')}
-            sx={{ minWidth: '120px' }}
+            size="small"
+            sx={{ whiteSpace: 'nowrap' }}
           >
-            ← Back to Rounds
+            ← Back
           </Button>
         </Box>
 
@@ -174,55 +176,12 @@ export function RoundPage() {
         }}>
           <Box sx={{ flex: 1 }}>
             <Card sx={{ mb: 3 }}>
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: 2,
-                  mb: 3
-                }}>
-                  <Chip
-                    label={roundWithStatus.status.charAt(0).toUpperCase() + roundWithStatus.status.slice(1)}
-                    color={roundWithStatus.status === 'active' ? 'success' :
-                      roundWithStatus.status === 'cooldown' ? 'warning' : 'default'}
-                    size="medium"
-                  />
-                  {roundWithStatus.timeLeft !== undefined && roundWithStatus.timeLeft > 0 && (
-                    <Typography variant="h4" className="text-mono" sx={{ color: 'primary.main' }}>
-                      {formatTimeLeft(roundWithStatus.timeLeft)}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Box sx={{
-                  textAlign: 'center',
-                  mb: 3,
-                  p: 2,
-                  bgcolor: 'grey.100',
-                  borderRadius: 2,
-                  border: 1,
-                  borderColor: 'grey.300'
-                }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Your Score
-                  </Typography>
-                  <Typography variant="h2" sx={{
-                    fontWeight: 'bold',
-                    color: 'text.primary',
-                    lineHeight: 1
-                  }}>
-                    {roundData.stats?.currentUserPoints || 0}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Total in round: {roundData.stats?.totalPoints || 0}
-                  </Typography>
-                </Box>
-
+              <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
                 <GooseButton
                   score={roundData.stats?.currentUserPoints || 0}
                   onClick={canTap ? handleTap : () => {}}
                   disabled={!canTap}
+                  timeLeft={roundWithStatus.timeLeft}
                 />
 
                 {roundWithStatus.status === 'cooldown' && (
@@ -233,9 +192,6 @@ export function RoundPage() {
 
                 {isCompleted && (
                   <Box sx={{ mt: 2 }}>
-                    <Alert severity="info" sx={{ mb: 2 }}>
-                      Round completed!
-                    </Alert>
                     <Paper sx={{ p: 2, bgcolor: 'background.default' }}>
                       <Typography variant="h6" gutterBottom>
                         Final Results

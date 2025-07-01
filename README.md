@@ -2,6 +2,9 @@
 
 A competitive tap-based game where players compete in timed rounds to achieve the highest score. Built with modern web technologies featuring a NestJS backend and React frontend.
 
+## 🚀 Demo
+ **Demo is available at: [http://150.241.67.237](http://150.241.67.237)**
+
 ## 🎮 Game Overview
 
 ### What is "The Last of Guss"?

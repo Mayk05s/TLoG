@@ -7,11 +7,14 @@ import gooseStage4 from '../assets/goose/5.png';
 import gooseStage5 from '../assets/goose/6.png';
 import gooseStage6 from '../assets/goose/7.png';
 import '../styles/_components.scss';
+import { Box, Typography } from '@mui/material';
+import { formatTimeLeft } from '../lib/utils';
 
 interface GooseButtonProps {
   score: number;
   onClick: () => void;
   disabled?: boolean;
+  timeLeft?: number;
 }
 
 const GOOSE_STAGES = [
@@ -38,7 +41,7 @@ interface EnergyPulse {
   timestamp: number;
 }
 
-export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabled }) => {
+export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabled, timeLeft }) => {
   const [isPressed, setIsPressed] = useState(false);
   const [waterRipples, setWaterRipples] = useState<WaterRipple[]>([]);
   const [energyPulses, setEnergyPulses] = useState<EnergyPulse[]>([]);
@@ -221,6 +224,31 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
 
   return (
     <div className="goose-container">
+      <Box sx={{
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        // transform: 'translateX(-50%)',
+        zIndex: 10,
+        textAlign: 'center',
+        p: 2,
+        bgcolor: 'rgba(0, 0, 0, 0.5)',
+        borderRadius: 2,
+        border: 1,
+        borderColor: 'rgba(255, 255, 255, 0.2)'
+      }}>
+        <Typography variant="body2" color="rgba(255, 255, 255, 0.7)" sx={{ mb: 1 }}>
+          Your Score
+        </Typography>
+        <Typography variant="h2" sx={{
+          fontWeight: 'bold',
+          color: 'white',
+          lineHeight: 1
+        }}>
+          {score || 0}
+        </Typography>
+      </Box>
+
       {/* Virus effect background */}
       <div className={`goose-background ${currentStage.bgClass}`}>
         {/* Main breathing background */}
@@ -289,7 +317,6 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
             }}
           />
         ))}
-
         {/* Goose sprite */}
         <div className="goose-sprite-container">
           <img
@@ -331,7 +358,9 @@ export const GooseButton: React.FC<GooseButtonProps> = ({ score, onClick, disabl
       {/* Round inactive overlay */}
       {disabled && (
         <div className="round-inactive-overlay">
-          <div className="round-inactive-text">ROUND INACTIVE</div>
+          <div className="round-inactive-text">
+            {timeLeft && timeLeft > 0 ? formatTimeLeft(timeLeft) : 'ROUND COMPILED'}
+          </div>
         </div>
       )}
     </div>
