@@ -1,9 +1,7 @@
-# Тестовый Dockerfile с чистым Node.js для диагностики
 FROM node:20-slim AS base
 
 ENV NODE_ENV=production
 
-# Устанавливаем только необходимые системные пакеты
 RUN apt-get update && apt-get install -y \
     procps \
     htop \
@@ -33,5 +31,4 @@ RUN chown -R nestjs:nodejs /app
 
 EXPOSE 3000
 
-# Упрощенная команда запуска БЕЗ seed для теста
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/index.js"]
