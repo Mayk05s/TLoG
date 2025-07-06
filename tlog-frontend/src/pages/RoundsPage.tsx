@@ -151,7 +151,6 @@ export function RoundsPage() {
           <Typography variant="h5">
             Available Rounds ({rounds?.length || 0})
           </Typography>
-          {user.role === 'admin' && (
             <Button
               variant="contained"
               startIcon={isCreating ? <CircularProgress size={20} /> : <Add />}
@@ -160,7 +159,6 @@ export function RoundsPage() {
             >
               {isCreating ? 'Creating...' : 'Create Round'}
             </Button>
-          )}
         </Box>
 
         {rounds?.length === 0 ? (

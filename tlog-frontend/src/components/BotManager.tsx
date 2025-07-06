@@ -29,7 +29,7 @@ const speedPresetKeys = Object.keys(BOT_SPEED_PRESETS) as SpeedPreset[];
 
 export function BotManager({ roundData, onStatsUpdate }: BotManagerProps) {
   const [activeBotConfigs, setActiveBotConfigs] = useState<Array<{username: string; password: string}>>([]);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [selectedSpeedIndex, setSelectedSpeedIndex] = useState(1);
   const leaderboardIntervalRef = useRef<number | undefined>(undefined);
 
@@ -67,7 +67,7 @@ export function BotManager({ roundData, onStatsUpdate }: BotManagerProps) {
 
   useEffect(() => {
     if (roundData.status === 'completed') {
-      removeAllBots();
+      // removeAllBots();
     }
   }, [roundData.status, removeAllBots]);
 
@@ -78,10 +78,6 @@ export function BotManager({ roundData, onStatsUpdate }: BotManagerProps) {
       }
     };
   }, []);
-
-  if (roundData.status === 'completed') {
-    return null;
-  }
 
   return (
     <Box

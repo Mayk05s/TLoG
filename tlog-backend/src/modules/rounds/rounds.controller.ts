@@ -3,10 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RoundsService } from './rounds.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentUserDto } from '../users/dto/current-user.dto';
-import { Role } from '@prisma/client';
 import { RoundDetailsDto, RoundDto, RoundsQueryDto } from './dto';
 
 @ApiTags('Rounds')
@@ -23,7 +21,6 @@ export class RoundsController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(Role.admin)
   async createRound(): Promise<RoundDto> {
     return this.roundsService.create();
   }

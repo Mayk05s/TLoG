@@ -451,7 +451,7 @@ export function BotInstance({
         </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          {(bot.status === 'active' || bot.status === 'paused') && bot.tapsCount > 0 && (
+          { bot.tapsCount > 0 && (
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
               <Tooltip title={`Bot calculated points: ${bot.pointsCount}`} arrow>
                 <Chip
@@ -507,7 +507,7 @@ export function BotInstance({
         )}
 
         {/* Диагностика - показываем только для активных/работающих ботов */}
-        {(bot.status === 'active' || bot.status === 'paused' || bot.status === 'error') &&
+        {
          (bot.successfulRequests > 0 || bot.failedRequests > 0) && (
           <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.65rem', mb: 0.5 }}>
