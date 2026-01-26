@@ -1,8 +1,8 @@
-import crypto from 'node:crypto';
+import { webcrypto } from 'node:crypto';
 
 // Polyfill for environments where crypto is not globally available
 if (!globalThis.crypto) {
-  globalThis.crypto = crypto as unknown as Crypto;
+  globalThis.crypto = webcrypto as unknown as Crypto;
 }
 
 import { NestFactory } from '@nestjs/core';
