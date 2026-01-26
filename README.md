@@ -2,6 +2,8 @@
 
 A competitive tap-based game where players compete in timed rounds to achieve the highest score. Built with modern web technologies featuring a NestJS backend and React frontend.
 
+**Live Demo**: [tlog.mayk05.pro](https://tlog.mayk05.pro)
+
 ## 🎮 Game Overview
 
 ### What is "The Last of Guss"?
