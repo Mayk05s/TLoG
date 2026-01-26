@@ -11,7 +11,10 @@ export async function setupApp(app: NestFastifyApplication) {
     }),
   );
 
-  app.enableCors();
+  app.enableCors({
+    origin: ['https://tlog.mayk05.pro', 'http://localhost:3000'],
+    credentials: true,
+  });
 }
 
 export function createFastifyAdapter(): FastifyAdapter {
