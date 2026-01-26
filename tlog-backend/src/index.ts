@@ -1,3 +1,10 @@
+import crypto from 'node:crypto';
+
+// Polyfill for environments where crypto is not globally available
+if (!globalThis.crypto) {
+  globalThis.crypto = crypto as unknown as Crypto;
+}
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
