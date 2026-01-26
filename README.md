@@ -1,5 +1,7 @@
 # The Last of Guss
 
+> **Disclaimer**: This is a joke/demo application designed to stress-test backend architecture. The frontend intentionally lacks optimizations to simulate high request loads to the server, real-time data processing, and race condition handling. The goal is to demonstrate how the backend handles concurrent requests, data consistency, and scalability under pressure.
+
 A competitive tap-based game where players compete in timed rounds to achieve the highest score. Built with modern web technologies featuring a NestJS backend and React frontend.
 
 **Live Demo**: [tlog.mayk05.pro](https://tlog.mayk05.pro)
